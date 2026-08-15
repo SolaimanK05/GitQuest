@@ -55,7 +55,7 @@ public final class SkillTreeView extends Pane {
         getChildren().addAll(edgesLayer, nodesLayer);
     }
 
-    public void render(List<ArcInfo> arcs, CampaignProgress progress, Consumer<LevelDefinition> onLevelClicked) {
+    public void render(List<ArcInfo> arcs, CampaignProgress progress, Consumer<LevelDefinition> onLevelSelected) {
         edgesLayer.getChildren().clear();
         nodesLayer.getChildren().clear();
 
@@ -88,7 +88,7 @@ public final class SkillTreeView extends Pane {
             if (entry.level() == null) {
                 addPlaceholderNode(NODE_X, y, entry.arc(), unlocked, startsNewArc, arcColor);
             } else {
-                addLevelNode(NODE_X, y, entry.level(), entry.arc(), progress, unlocked, startsNewArc, arcColor, onLevelClicked);
+                addLevelNode(NODE_X, y, entry.level(), entry.arc(), progress, unlocked, startsNewArc, arcColor, onLevelSelected);
             }
 
             previousX = NODE_X;
@@ -140,7 +140,7 @@ public final class SkillTreeView extends Pane {
     }
 
     private void addLevelNode(double x, double y, LevelDefinition level, ArcInfo arc, CampaignProgress progress,
-            boolean unlocked, boolean startsNewArc, Color arcColor, Consumer<LevelDefinition> onLevelClicked) {
+            boolean unlocked, boolean startsNewArc, Color arcColor, Consumer<LevelDefinition> onLevelSelected) {
         boolean completed = progress.isLevelCompleted(level.id());
 
         Circle circle = new Circle(x, y, RADIUS);
@@ -148,28 +148,38 @@ public final class SkillTreeView extends Pane {
         circle.setStroke(completed ? COMPLETED_STROKE : STROKE);
         circle.setStrokeWidth(completed ? 3 : 1.5);
         Tooltip.install(circle, new Tooltip(level.title() + "\n"
-                + (completed ? "Completed — click to replay" : (unlocked ? "Click to play" : "Locked"))));
+                + (unlocked ? "Click for details" : "Locked")));
 
-        Text glyph = new Text(completed ? "✓" : (unlocked ? "▶" : "🔒"));
-        glyph.setStyle("-fx-font-size: 16px; -fx-fill: white;");
-        glyph.setLayoutX(x - 6);
-        glyph.setLayoutY(y + 6);
+        if (unlocked) {
+            circle.setCursor(Cursor.HAND);
+            circle.setOnMouseClicked(e -> onLevelSelected.accept(level));
+        }
+
+        nodesLayer.getChildren().add(circle);
+
+        // No play glyph here — clicking a node only selects it and opens the
+        // detail tab; the tab's own Play button is what actually starts a
+        // level. A checkmark still marks completion, and a lock still marks
+        // an unreachable node, since those aren't action affordances. Added
+        // after the circle so it draws on top, not underneath it.
+        if (completed || !unlocked) {
+            Text glyph = new Text(completed ? "✓" : "🔒");
+            glyph.setStyle("-fx-font-size: 16px; -fx-fill: white;");
+            glyph.setLayoutX(x - 6);
+            glyph.setLayoutY(y + 6);
+            glyph.setMouseTransparent(true);
+            nodesLayer.getChildren().add(glyph);
+        }
 
         Label title = new Label(level.title());
         title.setLayoutX(x + RADIUS + 10);
         title.setLayoutY(y - 7);
         title.setStyle("-fx-font-size: 12px; -fx-text-fill: #E6E6E6;");
+        nodesLayer.getChildren().add(title);
 
         if (startsNewArc) {
             addArcLabel(x, y, arc, unlocked);
         }
-
-        if (unlocked) {
-            circle.setCursor(Cursor.HAND);
-            circle.setOnMouseClicked(e -> onLevelClicked.accept(level));
-        }
-
-        nodesLayer.getChildren().addAll(circle, glyph, title);
     }
 
     /** A branch/ref-style tag marking where a new topic (arc) begins in the chain. */

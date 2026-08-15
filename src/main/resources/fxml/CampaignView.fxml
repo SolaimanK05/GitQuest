@@ -5,9 +5,11 @@
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.SplitPane?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
 
 <BorderPane xmlns="http://javafx.com/javafx"
             xmlns:fx="http://javafx.com/fxml"
@@ -23,12 +25,31 @@
         </HBox>
     </top>
     <center>
-        <ScrollPane fitToWidth="true" fitToHeight="true">
-            <content>
-                <StackPane alignment="CENTER">
-                    <SkillTreeView fx:id="skillTreeView"/>
-                </StackPane>
-            </content>
-        </ScrollPane>
+        <SplitPane dividerPositions="0.68">
+            <items>
+                <ScrollPane fitToWidth="true" fitToHeight="true">
+                    <content>
+                        <StackPane alignment="CENTER">
+                            <SkillTreeView fx:id="skillTreeView"/>
+                        </StackPane>
+                    </content>
+                </ScrollPane>
+
+                <!-- ================= RIGHT: level detail tab ================= -->
+                <ScrollPane fitToWidth="true">
+                    <content>
+                        <VBox fx:id="detailPanel" styleClass="sidebar" spacing="12">
+                            <padding>
+                                <Insets top="20" right="20" bottom="20" left="20"/>
+                            </padding>
+                            <Label fx:id="detailArcLabel" styleClass="section-heading"/>
+                            <Label fx:id="detailTitleLabel" style="-fx-font-size: 18px; -fx-font-weight: bold;" wrapText="true"/>
+                            <Label fx:id="detailDescriptionLabel" wrapText="true"/>
+                            <Button fx:id="playButton" text="Play" styleClass="accent" maxWidth="Infinity" disable="true"/>
+                        </VBox>
+                    </content>
+                </ScrollPane>
+            </items>
+        </SplitPane>
     </center>
 </BorderPane>
