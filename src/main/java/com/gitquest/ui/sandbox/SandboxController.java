@@ -17,12 +17,14 @@ import com.gitquest.core.model.GraphDiff;
 import com.gitquest.core.model.RepoSnapshot;
 import com.gitquest.core.model.RepoStateModel;
 import com.gitquest.core.service.CommandService;
+import com.gitquest.core.service.WorkingTreeWatcher;
 import com.gitquest.ui.common.ErrorDialogs;
 
 import javafx.animation.Interpolator;
 import javafx.animation.KeyFrame;
 import javafx.animation.KeyValue;
 import javafx.animation.Timeline;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Accordion;
 import javafx.scene.control.Button;
@@ -33,6 +35,7 @@ import javafx.scene.control.ListView;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextInputDialog;
 import javafx.scene.control.ToggleButton;
+import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeView;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
@@ -106,6 +109,7 @@ public final class SandboxController {
     private Path repoRoot;
     private volatile StatusSnapshot latestStatus;
     private boolean sidebarCollapsed;
+    private WorkingTreeWatcher workingTreeWatcher;
 
     @FXML
     private void initialize() {
@@ -135,6 +139,20 @@ public final class SandboxController {
         commitGraphView.syncRefsAndHead(initial.commits(), initial.headRefName(), initial.headCommitId());
         refreshBranchChoices(initial);
         refreshHeadAndBranchLabels(initial);
+        refreshDirtyCount();
+
+        // Per CLAUDE.md 4.3: no built-in editor, so pick up edits made in the
+        // user's own editor by watching the working directory instead of
+        // requiring a manual Refresh click. Never touches the commit graph —
+        // uncommitted edits are working-tree state, not a graph node.
+        workingTreeWatcher = new WorkingTreeWatcher(repoRoot, java.time.Duration.ofMillis(400), this::onWorkingTreeChanged);
+        workingTreeWatcher.start();
+    }
+
+    /** Runs on the watcher's background thread — hop to the FX thread before touching UI state. */
+    private void onWorkingTreeChanged() {
+        TreeItem<Path> newTree = FileTreeBuilder.buildTree(repoRoot);
+        Platform.runLater(() -> fileTree.setRoot(newTree));
         refreshDirtyCount();
     }
 
