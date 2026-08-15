@@ -29,6 +29,30 @@ public final class CampaignProgress {
     }
 
     /**
+     * Strict linear progression through the whole campaign — no skipping.
+     * The first level is always unlocked; every other level unlocks only
+     * once the level immediately before it in campaign-wide order
+     * ({@link CampaignCatalog#allLevelsInOrder()}) is completed.
+     */
+    public boolean isLevelUnlocked(String levelId) {
+        List<LevelDefinition> all = CampaignCatalog.allLevelsInOrder();
+        int index = -1;
+        for (int i = 0; i < all.size(); i++) {
+            if (all.get(i).id().equals(levelId)) {
+                index = i;
+                break;
+            }
+        }
+        if (index < 0) {
+            return false;
+        }
+        if (index == 0) {
+            return true;
+        }
+        return isLevelCompleted(all.get(index - 1).id());
+    }
+
+    /**
      * Arc 1 is always unlocked. Arc N+1 unlocks once every level of arc N is
      * completed — an arc with no authored levels yet can never count as
      * "completed", so it must not vacuously unlock the arc after it.

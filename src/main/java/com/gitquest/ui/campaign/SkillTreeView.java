@@ -32,7 +32,13 @@ import javafx.scene.text.Text;
  */
 public final class SkillTreeView extends Pane {
 
-    private static final double NODE_X = 140;
+    // Node column sits at the pane's horizontal midpoint (not just an
+    // arbitrary left offset) so that when a parent StackPane centers this
+    // whole Pane, the visible node chain — not just its bounding box —
+    // actually lands in the middle: label text only extends rightward from
+    // the node, so an off-center node position previously made the chain
+    // look shifted left even though the Pane itself was centered.
+    private static final double NODE_X = 200;
     private static final double MARGIN_Y = 50;
     private static final double ROW_HEIGHT = 110;
     private static final double RADIUS = 22;
@@ -62,7 +68,12 @@ public final class SkillTreeView extends Pane {
         for (int i = 0; i < chain.size(); i++) {
             ChainEntry entry = chain.get(i);
             double y = MARGIN_Y + i * ROW_HEIGHT;
-            boolean unlocked = progress.isArcUnlocked(entry.arc().id());
+            // Levels gate strictly one-at-a-time (no skipping); placeholder
+            // "coming soon" arc entries fall back to the coarser arc check
+            // since they have no individual level to chain against.
+            boolean unlocked = entry.level() != null
+                    ? progress.isLevelUnlocked(entry.level().id())
+                    : progress.isArcUnlocked(entry.arc().id());
             Color arcColor = LanePalette.forLane(entry.arcIndex());
             boolean startsNewArc = !entry.arc().id().equals(previousArcId);
 
@@ -85,7 +96,7 @@ public final class SkillTreeView extends Pane {
             previousArcId = entry.arc().id();
         }
 
-        setPrefWidth(NODE_X + 260);
+        setPrefWidth(NODE_X * 2);
         setPrefHeight(MARGIN_Y + chain.size() * ROW_HEIGHT + 40);
     }
 

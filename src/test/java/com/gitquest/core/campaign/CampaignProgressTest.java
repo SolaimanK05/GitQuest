@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.List;
+
 import org.junit.jupiter.api.Test;
 
 class CampaignProgressTest {
@@ -54,5 +56,30 @@ class CampaignProgressTest {
         // "branching" (arc 2) has no authored levels yet, so its empty level
         // list must not vacuously "complete" it and unlock "conflicts" (arc 3).
         assertFalse(progress.isArcUnlocked("conflicts"));
+    }
+
+    @Test
+    void firstLevelInCampaignIsAlwaysUnlocked() {
+        CampaignProgress progress = new CampaignProgress();
+        LevelDefinition first = CampaignCatalog.allLevelsInOrder().get(0);
+        assertTrue(progress.isLevelUnlocked(first.id()));
+    }
+
+    @Test
+    void laterLevelsAreLockedUntilThePreviousOneIsCompleted() {
+        CampaignProgress progress = new CampaignProgress();
+        List<LevelDefinition> all = CampaignCatalog.allLevelsInOrder();
+        LevelDefinition second = all.get(1);
+        LevelDefinition third = all.get(2);
+
+        assertFalse(progress.isLevelUnlocked(second.id()));
+        assertFalse(progress.isLevelUnlocked(third.id()));
+
+        progress.recordCompletion(all.get(0).id(), 0);
+        assertTrue(progress.isLevelUnlocked(second.id()));
+        assertFalse(progress.isLevelUnlocked(third.id()));
+
+        progress.recordCompletion(second.id(), 0);
+        assertTrue(progress.isLevelUnlocked(third.id()));
     }
 }

@@ -46,4 +46,9 @@ public final class CampaignCatalog {
     public static int totalLevelCount() {
         return LEVELS.size();
     }
+
+    /** Every level across every arc, in campaign-wide play order — the chain {@link CampaignProgress} gates against. */
+    public static List<LevelDefinition> allLevelsInOrder() {
+        return LEVELS;
+    }
 }
