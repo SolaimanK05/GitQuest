@@ -8,15 +8,12 @@ import com.gitquest.ui.common.Navigator;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
-import javafx.scene.control.ProgressBar;
 
 /** Controller for {@code HomeView.fxml} — the app's true entry point per CLAUDE.md 4.4. */
 public final class HomeController {
 
     @FXML
     private Label progressLabel;
-    @FXML
-    private ProgressBar progressBar;
     @FXML
     private Button campaignButton;
     @FXML
@@ -40,6 +37,5 @@ public final class HomeController {
         int completed = progress.completedCount();
         int total = CampaignCatalog.totalLevelCount();
         progressLabel.setText("Campaign: " + completed + " / " + total + " levels complete");
-        progressBar.setProgress(total == 0 ? 0 : (double) completed / total);
     }
 }

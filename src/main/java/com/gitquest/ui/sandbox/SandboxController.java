@@ -41,10 +41,8 @@ import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextInputDialog;
-import javafx.scene.control.ToggleButton;
 import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeView;
-import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.util.Duration;
 
@@ -74,11 +72,9 @@ public final class SandboxController {
     @FXML
     private TreeView<Path> fileTree;
     @FXML
-    private ToggleButton terminalToggleButton;
+    private Label commandsHeaderLabel;
     @FXML
     private Accordion commandAccordion;
-    @FXML
-    private HBox terminalInputBox;
     @FXML
     private TextField terminalInputField;
     @FXML
@@ -144,7 +140,6 @@ public final class SandboxController {
         mergeButton.setOnAction(e -> handleMerge());
 
         collapseSidebarButton.setOnAction(e -> toggleSidebar());
-        terminalToggleButton.setOnAction(e -> toggleTerminal());
         terminalInputField.setOnAction(e -> handleTerminalCommand());
     }
 
@@ -189,10 +184,18 @@ public final class SandboxController {
         campaignBanner.setVisible(true);
         campaignBanner.setManaged(true);
         levelTitleLabel.setText(level.title());
-        objectiveLabel.setText("Objective: " + level.objective());
+        objectiveLabel.setText(level.objective());
         whyItMattersLabel.setText("Why it matters: " + level.whyItMatters());
         hintButton.setOnAction(e -> handleHint());
         backToSkillTreeButton.setOnAction(e -> navigator.showCampaign());
+
+        // Campaign levels are terminal-only — no button palette. Typing the
+        // real commands is the point of a *guided* campaign.
+        commandsHeaderLabel.setVisible(false);
+        commandsHeaderLabel.setManaged(false);
+        commandAccordion.setVisible(false);
+        commandAccordion.setManaged(false);
+        terminalInputField.requestFocus();
     }
 
     private void handleHint() {
@@ -262,15 +265,6 @@ public final class SandboxController {
         // hinting at the *next* click's effect (collapse vs. expand).
         collapseSidebarButton.setText(expanding ? "❮" : "❯");
         timeline.play();
-    }
-
-    private void toggleTerminal() {
-        boolean showTerminal = terminalToggleButton.isSelected();
-        terminalInputBox.setVisible(showTerminal);
-        terminalInputBox.setManaged(showTerminal);
-        if (showTerminal) {
-            terminalInputField.requestFocus();
-        }
     }
 
     private void handleTerminalCommand() {

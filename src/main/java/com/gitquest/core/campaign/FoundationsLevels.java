@@ -22,11 +22,18 @@ final class FoundationsLevels {
                 "foundations-first-commit",
                 "foundations",
                 "First Commit",
-                "Stage and commit notes.txt.",
-                "git init only creates an empty repository — nothing is tracked until you stage and commit. "
-                        + "This is the smallest possible unit of Git history.",
-                "Try the \"Stage All\" button, then \"Commit...\".",
-                "Click Stage All, then Commit... and enter any commit message.",
+                "A brand new Git repository starts completely empty — even right after git init, nothing is "
+                        + "tracked yet. Git records history in two steps: staging marks which changes belong in "
+                        + "the next snapshot, and committing actually saves that snapshot permanently, along "
+                        + "with a message describing what changed. This two-step design is deliberate — it lets "
+                        + "you build up exactly the change you want to record before you save it, even if your "
+                        + "working directory has other unrelated edits in progress.\n\n"
+                        + "This repository already has one file on disk, notes.txt, but Git isn't tracking it "
+                        + "yet. Stage it, then commit it — that stage → commit cycle is the single most-repeated "
+                        + "action in Git.",
+                "It's the same cycle you'll use for every single change you ever make in Git.",
+                "Type: add\nThen type: commit -m \"your message\"",
+                "Type \"add\" and press Enter, then type commit -m \"first commit\" and press Enter.",
                 (model, executor) -> Files.writeString(
                         model.getRepository().getWorkTree().toPath().resolve("notes.txt"),
                         "My first tracked file.\n"),
@@ -38,11 +45,18 @@ final class FoundationsLevels {
                 "foundations-build-a-timeline",
                 "foundations",
                 "Build a Timeline",
-                "This repo already has 2 commits. Add a third.",
-                "Git history is a timeline of snapshots, not a single save file — being able to look back "
-                        + "through it (git log) is what makes Git useful for recovery and collaboration.",
-                "Edit any file, then Stage All and Commit again.",
-                "Change notes.txt, Stage All, then Commit with a new message.",
+                "Every commit becomes a permanent point in your project's history that you can return to later "
+                        + "— Git isn't a single save file that gets overwritten, it's a chain of snapshots, each "
+                        + "one pointing back at the one before it. That chain is what \"git log\" shows you, and "
+                        + "it's what makes recovery possible: if something breaks, you can always look back and "
+                        + "see exactly what the project looked like at any earlier commit.\n\n"
+                        + "This repository already has two commits recording earlier work. Change a file, then "
+                        + "stage and commit again — watch a third point appear on the graph, continuing the same "
+                        + "chain.",
+                "Teams rely on this history constantly — code review, blame, and debugging all start with git log.",
+                "Edit a file (e.g. append a line to notes.txt) with any text editor, then in the terminal: "
+                        + "add, then commit -m \"your message\".",
+                "Add a line to notes.txt on disk, then type add and press Enter, then commit -m \"third entry\".",
                 (model, executor) -> {
                     Path notes = model.getRepository().getWorkTree().toPath().resolve("notes.txt");
                     Files.writeString(notes, "Line one.\n");
@@ -60,12 +74,19 @@ final class FoundationsLevels {
                 "foundations-gitignore-habits",
                 "foundations",
                 ".gitignore Habits",
-                "This repo has a build/ folder full of junk output. Create a .gitignore that excludes it, "
-                        + "then commit the .gitignore.",
-                "Committing generated build output bloats history and causes noisy diffs for your whole "
-                        + "team — .gitignore keeps it out from the start.",
-                "Create a file named .gitignore containing the line: build/",
-                "Create .gitignore with the single line \"build/\", then Stage All and Commit.",
+                "Not everything inside a project folder belongs in Git. Build output, compiled binaries, and "
+                        + "other generated files change constantly, don't represent real project history, and "
+                        + "just bloat your repository with noise. A .gitignore file tells Git which paths to "
+                        + "leave alone so they never get staged by accident — and because .gitignore is itself "
+                        + "just a normal file, it needs to be committed too, so the rule applies for anyone else "
+                        + "who clones the project, not just you.\n\n"
+                        + "This repository has a build/ folder full of generated junk. Create a .gitignore file "
+                        + "that excludes it, then stage and commit the .gitignore itself.",
+                "Committing build output bloats history and causes noisy diffs for your whole team.",
+                "Create a file named .gitignore containing the line: build/\n"
+                        + "Then in the terminal: add, then commit -m \"your message\".",
+                "Create .gitignore with the single line \"build/\", then type add and press Enter, then "
+                        + "commit -m \"add gitignore\".",
                 (model, executor) -> {
                     Path workTree = model.getRepository().getWorkTree().toPath();
                     Files.createDirectories(workTree.resolve("build"));

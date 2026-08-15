@@ -11,7 +11,6 @@
 <?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.control.TitledPane?>
-<?import javafx.scene.control.ToggleButton?>
 <?import javafx.scene.control.Tooltip?>
 <?import javafx.scene.control.TreeView?>
 <?import javafx.scene.layout.BorderPane?>
@@ -25,16 +24,18 @@
 
     <!-- ================= TOP: campaign level banner (hidden in free-play Sandbox) ================= -->
     <top>
-        <VBox fx:id="campaignBanner" visible="false" managed="false" styleClass="status-bar" spacing="4">
+        <VBox fx:id="campaignBanner" visible="false" managed="false" styleClass="status-bar" spacing="8">
             <padding>
-                <Insets top="10" right="16" bottom="10" left="16"/>
+                <Insets top="12" right="16" bottom="12" left="16"/>
             </padding>
             <HBox spacing="12" alignment="CENTER_LEFT">
-                <Label fx:id="levelTitleLabel" style="-fx-font-weight: bold; -fx-font-size: 14px;" HBox.hgrow="ALWAYS"/>
+                <Label fx:id="levelTitleLabel" style="-fx-font-weight: bold; -fx-font-size: 16px;" HBox.hgrow="ALWAYS"/>
                 <Button fx:id="hintButton" text="Hint"/>
                 <Button fx:id="backToSkillTreeButton" text="&#8592; Skill Tree"/>
             </HBox>
-            <Label fx:id="objectiveLabel" wrapText="true"/>
+            <VBox spacing="4" style="-fx-background-color: -bg-panel-alt; -fx-background-radius: 6px; -fx-border-color: -border; -fx-border-radius: 6px; -fx-padding: 12;">
+                <Label fx:id="objectiveLabel" wrapText="true" style="-fx-font-size: 13px;"/>
+            </VBox>
             <Label fx:id="whyItMattersLabel" wrapText="true" styleClass="sub-label"/>
         </VBox>
     </top>
@@ -62,17 +63,8 @@
                 <Label text="Files" styleClass="section-heading"/>
                 <TreeView fx:id="fileTree" VBox.vgrow="ALWAYS" prefHeight="220"/>
 
-                <!-- Palette / terminal toggle -->
-                <HBox spacing="8" alignment="CENTER_LEFT">
-                    <Label text="Commands" styleClass="section-heading" HBox.hgrow="ALWAYS"/>
-                    <ToggleButton fx:id="terminalToggleButton" text="Terminal" selected="true">
-                        <tooltip>
-                            <Tooltip text="Show a raw command line at the bottom, next to the log"/>
-                        </tooltip>
-                    </ToggleButton>
-                </HBox>
-
-                <!-- Button palette (collapsible sections) -->
+                <!-- Button palette (collapsible sections; hidden in campaign mode — terminal only) -->
+                <Label fx:id="commandsHeaderLabel" text="Commands" styleClass="section-heading"/>
                 <Accordion fx:id="commandAccordion" VBox.vgrow="ALWAYS">
                     <panes>
                         <TitledPane text="Working Tree" expanded="true">

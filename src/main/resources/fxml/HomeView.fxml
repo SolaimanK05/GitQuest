@@ -3,7 +3,6 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Label?>
-<?import javafx.scene.control.ProgressBar?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.VBox?>
 
@@ -19,10 +18,7 @@
             <Label text="GitQuest" style="-fx-font-size: 34px; -fx-font-weight: bold; -fx-text-fill: -git-accent;"/>
             <Label text="Learn Git by doing it." styleClass="sub-label"/>
 
-            <VBox alignment="CENTER" spacing="8" maxWidth="360">
-                <Label fx:id="progressLabel" styleClass="section-heading"/>
-                <ProgressBar fx:id="progressBar" prefWidth="360"/>
-            </VBox>
+            <Label fx:id="progressLabel" styleClass="section-heading"/>
 
             <VBox alignment="CENTER" spacing="12" maxWidth="280">
                 <Button fx:id="campaignButton" text="Guided Campaign" styleClass="accent" maxWidth="Infinity"/>

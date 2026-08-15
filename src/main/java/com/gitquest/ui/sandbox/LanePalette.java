@@ -8,7 +8,7 @@ import javafx.scene.paint.Color;
  * reserved for the HEAD ring and other accent chrome (see dark-theme.css),
  * so it never collides with a lane's color.
  */
-final class LanePalette {
+public final class LanePalette {
 
     private static final Color[] COLORS = {
             Color.web("#4C8BF5"), // blue
@@ -22,7 +22,7 @@ final class LanePalette {
     private LanePalette() {
     }
 
-    static Color forLane(int lane) {
+    public static Color forLane(int lane) {
         int index = Math.floorMod(lane, COLORS.length);
         return COLORS[index];
     }
