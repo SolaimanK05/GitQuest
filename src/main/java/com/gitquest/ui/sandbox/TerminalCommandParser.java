@@ -13,7 +13,8 @@ import com.gitquest.core.model.GraphDiff;
  * same {@link CommandExecutor} the button palette uses — per CLAUDE.md 4.3's
  * "toggle to a real terminal-style text input for confident users". Supports
  * {@code add}, {@code commit -m "message"}, {@code branch <name>},
- * {@code checkout <name>}, {@code merge <name> [--no-ff]}. {@code status}
+ * {@code checkout <name>}, {@code merge <name> [--no-ff]},
+ * {@code delete <name>}. {@code status}
  * and {@code refresh}/{@code log} don't produce a {@link GraphDiff} and are
  * special-cased by the caller before reaching this parser. Unrecognized
  * input throws {@link IllegalArgumentException} so the caller can log it as
@@ -47,9 +48,12 @@ final class TerminalCommandParser {
                 boolean noFastForward = tokens.contains("--no-ff");
                 return executor.merge(branch, noFastForward);
             }
+            case "delete":
+                return executor.deleteBranch(requireArg(tokens, verb));
             default:
                 throw new IllegalArgumentException("Unknown command: " + verb
-                        + ". Supported: add, commit -m \"...\", branch <name>, checkout <name>, merge <name> [--no-ff], status, refresh");
+                        + ". Supported: add, commit -m \"...\", branch <name>, checkout <name>, merge <name> [--no-ff], "
+                        + "delete <name>, status, refresh");
         }
     }
 

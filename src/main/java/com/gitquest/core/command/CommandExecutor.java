@@ -50,6 +50,17 @@ public final class CommandExecutor {
         return mutate(() -> git().checkout().setName(refName).call());
     }
 
+    /**
+     * Deletes a branch (not force — JGit's {@code branchDelete} refuses, via
+     * {@code NotMergedException}, if the branch has commits not reachable
+     * from HEAD, same as real {@code git branch -d}). That refusal surfaces
+     * as a normal {@link GitCommandException}, which is itself the teaching
+     * moment: Git won't let you casually lose unmerged work.
+     */
+    public GraphDiff deleteBranch(String name) {
+        return mutate(() -> git().branchDelete().setBranchNames(name).call());
+    }
+
     public GraphDiff merge(String branchName, boolean noFastForward) {
         return mutate(() -> {
             Repository repository = model.getRepository();

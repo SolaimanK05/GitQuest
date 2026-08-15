@@ -2,11 +2,12 @@ package com.gitquest.core.campaign;
 
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
- * Static registry of all 6 arcs (per CLAUDE.md 4.2) and their levels. Only
- * Arc 1 (Foundations) has authored {@link LevelDefinition}s this pass —
- * arcs 2-6 carry metadata only and render as "coming soon" in the skill tree.
+ * Static registry of all 6 arcs (per CLAUDE.md 4.2) and their levels. Arcs 1
+ * (Foundations) and 2 (Branching) have authored {@link LevelDefinition}s —
+ * arcs 3-6 carry metadata only and render as "coming soon" in the skill tree.
  */
 public final class CampaignCatalog {
 
@@ -21,7 +22,10 @@ public final class CampaignCatalog {
             new ArcInfo("recovery", "Recovery", "reflog, reset, revert vs. reset, recovering a deleted branch"),
             new ArcInfo("remotes", "Remotes", "fetch vs. pull, push, tracking branches, force-push dangers"));
 
-    private static final List<LevelDefinition> LEVELS = FoundationsLevels.all();
+    private static final List<LevelDefinition> LEVELS = Stream.concat(
+                    FoundationsLevels.all().stream(),
+                    BranchingLevels.all().stream())
+            .collect(Collectors.toList());
 
     private CampaignCatalog() {
     }
