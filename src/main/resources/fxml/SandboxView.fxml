@@ -23,6 +23,22 @@
             fx:controller="com.gitquest.ui.sandbox.SandboxController"
             styleClass="root">
 
+    <!-- ================= TOP: campaign level banner (hidden in free-play Sandbox) ================= -->
+    <top>
+        <VBox fx:id="campaignBanner" visible="false" managed="false" styleClass="status-bar" spacing="4">
+            <padding>
+                <Insets top="10" right="16" bottom="10" left="16"/>
+            </padding>
+            <HBox spacing="12" alignment="CENTER_LEFT">
+                <Label fx:id="levelTitleLabel" style="-fx-font-weight: bold; -fx-font-size: 14px;" HBox.hgrow="ALWAYS"/>
+                <Button fx:id="hintButton" text="Hint"/>
+                <Button fx:id="backToSkillTreeButton" text="&#8592; Skill Tree"/>
+            </HBox>
+            <Label fx:id="objectiveLabel" wrapText="true"/>
+            <Label fx:id="whyItMattersLabel" wrapText="true" styleClass="sub-label"/>
+        </VBox>
+    </top>
+
     <!-- ================= LEFT: collapsible sidebar ================= -->
     <left>
         <VBox fx:id="sidebarContainer" styleClass="sidebar" prefWidth="280" minWidth="40">

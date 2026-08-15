@@ -10,6 +10,8 @@ import java.util.stream.Collectors;
 
 import org.eclipse.jgit.lib.ObjectId;
 
+import com.gitquest.core.campaign.CampaignProgress;
+import com.gitquest.core.campaign.LevelDefinition;
 import com.gitquest.core.command.CommandExecutor;
 import com.gitquest.core.command.StatusSnapshot;
 import com.gitquest.core.model.BranchRef;
@@ -18,7 +20,9 @@ import com.gitquest.core.model.RepoSnapshot;
 import com.gitquest.core.model.RepoStateModel;
 import com.gitquest.core.service.CommandService;
 import com.gitquest.core.service.WorkingTreeWatcher;
+import com.gitquest.persistence.CampaignProgressStore;
 import com.gitquest.ui.common.ErrorDialogs;
+import com.gitquest.ui.common.Navigator;
 
 import javafx.animation.Interpolator;
 import javafx.animation.KeyFrame;
@@ -27,7 +31,10 @@ import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Accordion;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.Label;
@@ -102,14 +109,30 @@ public final class SandboxController {
     private CheckBox noFastForwardCheck;
     @FXML
     private Button mergeButton;
+    @FXML
+    private VBox campaignBanner;
+    @FXML
+    private Label levelTitleLabel;
+    @FXML
+    private Label objectiveLabel;
+    @FXML
+    private Label whyItMattersLabel;
+    @FXML
+    private Button hintButton;
+    @FXML
+    private Button backToSkillTreeButton;
 
     private final CommandService commandService = new CommandService();
+    private final CampaignProgressStore progressStore = new CampaignProgressStore();
     private RepoStateModel model;
     private CommandExecutor commandExecutor;
     private Path repoRoot;
     private volatile StatusSnapshot latestStatus;
     private boolean sidebarCollapsed;
     private WorkingTreeWatcher workingTreeWatcher;
+    private LevelDefinition activeLevel;
+    private int hintTierUsed;
+    private boolean levelCompletedThisSession;
 
     @FXML
     private void initialize() {
@@ -154,6 +177,67 @@ public final class SandboxController {
         TreeItem<Path> newTree = FileTreeBuilder.buildTree(repoRoot);
         Platform.runLater(() -> fileTree.setRoot(newTree));
         refreshDirtyCount();
+    }
+
+    // ---- campaign mode ----
+
+    /** Enters this Sandbox screen scoped to a Campaign level instead of free play — see class javadoc. */
+    public void setCampaignLevel(RepoStateModel model, LevelDefinition level, Navigator navigator) {
+        this.activeLevel = level;
+        setModel(model);
+
+        campaignBanner.setVisible(true);
+        campaignBanner.setManaged(true);
+        levelTitleLabel.setText(level.title());
+        objectiveLabel.setText("Objective: " + level.objective());
+        whyItMattersLabel.setText("Why it matters: " + level.whyItMatters());
+        hintButton.setOnAction(e -> handleHint());
+        backToSkillTreeButton.setOnAction(e -> navigator.showCampaign());
+    }
+
+    private void handleHint() {
+        if (hintTierUsed == 0) {
+            hintTierUsed = 1;
+            new Alert(AlertType.INFORMATION, activeLevel.freeHint(), ButtonType.OK).showAndWait();
+            return;
+        }
+        Alert confirm = new Alert(AlertType.CONFIRMATION,
+                "This will reveal the exact commands. Continue?", ButtonType.YES, ButtonType.NO);
+        confirm.setHeaderText("Show solution?");
+        Optional<ButtonType> choice = confirm.showAndWait();
+        if (choice.isPresent() && choice.get() == ButtonType.YES) {
+            hintTierUsed = 2;
+            new Alert(AlertType.INFORMATION, activeLevel.solutionHint(), ButtonType.OK).showAndWait();
+        }
+    }
+
+    /** Checked off the FX thread — a goal may need real JGit/disk reads (see GitignoreExcludesGoal). */
+    private void checkLevelGoal() {
+        if (activeLevel == null || levelCompletedThisSession) {
+            return;
+        }
+        LevelDefinition level = activeLevel;
+        commandService.submit(() -> level.goal().isSatisfied(model),
+                satisfied -> {
+                    if (satisfied) {
+                        onLevelGoalSatisfied();
+                    }
+                },
+                error -> { /* transient check failure; next command will re-check */ });
+    }
+
+    private void onLevelGoalSatisfied() {
+        levelCompletedThisSession = true;
+        CampaignProgress progress = progressStore.load();
+        boolean firstTime = !progress.isLevelCompleted(activeLevel.id());
+        progress.recordCompletion(activeLevel.id(), hintTierUsed);
+        progressStore.save(progress);
+
+        Alert done = new Alert(AlertType.INFORMATION,
+                firstTime ? "Nice work!" : "Solved again — this level was already completed earlier.",
+                ButtonType.OK);
+        done.setHeaderText("🎉 " + activeLevel.title() + " complete");
+        done.showAndWait();
     }
 
     // ---- sidebar / terminal chrome ----
@@ -281,6 +365,7 @@ public final class SandboxController {
         refreshHeadAndBranchLabels(snapshot);
         refreshDirtyCount();
         refreshFileTree();
+        checkLevelGoal();
     }
 
     private void onManualRefresh(RepoSnapshot snapshot) {
@@ -292,6 +377,7 @@ public final class SandboxController {
         refreshHeadAndBranchLabels(snapshot);
         refreshDirtyCount();
         refreshFileTree();
+        checkLevelGoal();
     }
 
     private void onError(Throwable error) {

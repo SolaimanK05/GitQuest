@@ -8,7 +8,7 @@ public final class GitQuestApp extends Application {
     @Override
     public void start(Stage stage) {
         SceneRouter router = new SceneRouter(stage);
-        router.showEntry();
+        router.showHome();
         stage.setTitle("GitQuest");
         stage.setWidth(1100);
         stage.setHeight(720);

@@ -1,2 +1,2 @@
-/** Campaign progress / SQLite persistence — deferred to a later build phase. */
+/** Local persistence: campaign progress as flat JSON. See {@link com.gitquest.persistence.CampaignProgressStore}. */
 package com.gitquest.persistence;

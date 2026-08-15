@@ -258,3 +258,25 @@
 .commit-graph {
     -fx-background-color: -bg-base;
 }
+
+/* --- Campaign skill tree --- */
+
+.level-card {
+    -fx-background-color: -bg-panel-alt;
+    -fx-text-fill: -text-primary;
+    -fx-border-color: -border;
+    -fx-border-radius: 6px;
+    -fx-background-radius: 6px;
+    -fx-text-alignment: center;
+    -fx-alignment: center;
+    -fx-cursor: hand;
+}
+
+.level-card:hover {
+    -fx-background-color: -bg-hover;
+}
+
+.level-card.completed {
+    -fx-border-color: -git-accent;
+    -fx-border-width: 2px;
+}
