@@ -1,0 +1,260 @@
+/*
+ * GitQuest dark theme. Git's brand red (-git-accent) is reserved for
+ * chrome/highlights (buttons, HEAD ring, active states) so it never
+ * collides with the per-lane branch colors assigned in Java
+ * (CommitNodeView / CommitGraphView).
+ */
+
+.root {
+    -bg-base: #121212;
+    -bg-panel: #181818;
+    -bg-panel-alt: #202022;
+    -bg-hover: #2A2A2C;
+    -border: #333335;
+    -text-primary: #E6E6E6;
+    -text-secondary: #9DA5B4;
+    -git-accent: #F05133;
+    -git-accent-hover: #FF6B4A;
+    -git-accent-pressed: #D6432A;
+
+    -fx-background-color: -bg-base;
+    -fx-text-fill: -text-primary;
+    -fx-font-size: 12px;
+}
+
+.label {
+    -fx-text-fill: -text-primary;
+}
+
+.sub-label {
+    -fx-text-fill: -text-secondary;
+}
+
+/* --- Buttons --- */
+
+.button {
+    -fx-background-color: -bg-panel-alt;
+    -fx-text-fill: -text-primary;
+    -fx-background-radius: 4px;
+    -fx-border-color: -border;
+    -fx-border-radius: 4px;
+    -fx-padding: 6px 12px;
+    -fx-cursor: hand;
+}
+
+.button:hover {
+    -fx-background-color: -bg-hover;
+}
+
+.button:pressed {
+    -fx-background-color: derive(-bg-hover, -10%);
+}
+
+.button.accent {
+    -fx-background-color: -git-accent;
+    -fx-text-fill: white;
+    -fx-border-color: transparent;
+    -fx-font-weight: bold;
+}
+
+.button.accent:hover {
+    -fx-background-color: -git-accent-hover;
+}
+
+.button.accent:pressed {
+    -fx-background-color: -git-accent-pressed;
+}
+
+.toggle-button {
+    -fx-background-color: -bg-panel-alt;
+    -fx-text-fill: -text-primary;
+    -fx-background-radius: 4px;
+    -fx-border-color: -border;
+    -fx-border-radius: 4px;
+    -fx-cursor: hand;
+}
+
+.toggle-button:selected {
+    -fx-background-color: -git-accent;
+    -fx-text-fill: white;
+}
+
+/* --- Check box / choice box (previously fell back to default light-theme text) --- */
+
+.check-box {
+    -fx-text-fill: -text-primary;
+}
+
+.check-box .text {
+    -fx-fill: -text-primary;
+}
+
+.check-box .box {
+    -fx-background-color: -bg-panel-alt;
+    -fx-border-color: -border;
+    -fx-border-radius: 2px;
+}
+
+.check-box:selected .box {
+    -fx-background-color: -git-accent;
+    -fx-border-color: -git-accent;
+}
+
+.check-box .mark {
+    -fx-background-color: white;
+}
+
+.choice-box {
+    -fx-background-color: -bg-panel-alt;
+    -fx-border-color: -border;
+    -fx-border-radius: 3px;
+    -fx-background-radius: 3px;
+    -fx-text-fill: -text-primary;
+}
+
+.choice-box .label {
+    -fx-text-fill: -text-primary;
+}
+
+.choice-box .arrow {
+    -fx-background-color: -text-secondary;
+}
+
+.context-menu {
+    -fx-background-color: -bg-panel-alt;
+    -fx-border-color: -border;
+}
+
+.menu-item .label {
+    -fx-text-fill: -text-primary;
+}
+
+.menu-item:focused {
+    -fx-background-color: -git-accent;
+}
+
+.menu-item:focused .label {
+    -fx-text-fill: white;
+}
+
+.tooltip {
+    -fx-background-color: -bg-panel-alt;
+    -fx-text-fill: -text-primary;
+    -fx-border-color: -border;
+}
+
+/* --- Panels / sidebar --- */
+
+.sidebar {
+    -fx-background-color: -bg-panel;
+    -fx-border-color: transparent -border transparent transparent;
+    -fx-border-width: 0 1px 0 0;
+}
+
+.status-bar {
+    -fx-background-color: -bg-panel;
+    -fx-border-color: -border transparent transparent transparent;
+    -fx-border-width: 1px 0 0 0;
+}
+
+.section-heading {
+    -fx-text-fill: -text-secondary;
+    -fx-font-weight: bold;
+    -fx-font-size: 11px;
+}
+
+/* --- Inputs --- */
+
+.text-field, .text-area {
+    -fx-background-color: -bg-panel-alt;
+    -fx-text-fill: -text-primary;
+    -fx-border-color: -border;
+    -fx-border-radius: 3px;
+    -fx-background-radius: 3px;
+}
+
+.text-field:focused {
+    -fx-border-color: -git-accent;
+}
+
+.terminal-input {
+    -fx-background-color: #0A0A0B;
+    -fx-text-fill: #D8FFD8;
+    -fx-font-family: "Consolas", monospace;
+    -fx-border-color: -border;
+}
+
+.terminal-input:focused {
+    -fx-border-color: -git-accent;
+}
+
+.terminal-prompt {
+    -fx-text-fill: -git-accent;
+    -fx-font-family: "Consolas", monospace;
+    -fx-font-weight: bold;
+}
+
+/* --- Accordion / command palette --- */
+
+.titled-pane {
+    -fx-text-fill: -text-primary;
+}
+
+.accordion .titled-pane > .title {
+    -fx-background-color: -bg-panel-alt;
+    -fx-text-fill: -text-primary;
+    -fx-font-weight: bold;
+}
+
+/* The header's actual text glyphs are a Text node (uses -fx-fill, not
+   -fx-text-fill) nested inside .title — setting -fx-text-fill on .title
+   alone styles the bar, not the label drawn inside it. */
+.accordion .titled-pane > .title > .text,
+.accordion .titled-pane > .title .text {
+    -fx-fill: -text-primary;
+}
+
+.accordion .titled-pane > .title > .arrow-button > .arrow {
+    -fx-background-color: -text-secondary;
+}
+
+.accordion .titled-pane > .content {
+    -fx-background-color: -bg-panel;
+}
+
+/* --- Lists / trees --- */
+
+.list-view, .tree-view {
+    -fx-background-color: -bg-panel;
+    -fx-control-inner-background: -bg-panel;
+    -fx-text-fill: -text-primary;
+    -fx-border-color: -border;
+}
+
+.list-cell, .tree-cell {
+    -fx-background-color: -bg-panel;
+    -fx-text-fill: -text-primary;
+}
+
+.list-cell:filled:hover, .tree-cell:filled:hover {
+    -fx-background-color: -bg-hover;
+}
+
+.list-cell:filled:selected, .tree-cell:filled:selected {
+    -fx-background-color: derive(-git-accent, 60%);
+}
+
+.command-log {
+    -fx-font-family: "Consolas", monospace;
+    -fx-font-size: 11px;
+}
+
+/* --- Scroll pane / commit graph canvas --- */
+
+.scroll-pane, .scroll-pane > .viewport {
+    -fx-background-color: -bg-base;
+}
+
+.commit-graph {
+    -fx-background-color: -bg-base;
+}

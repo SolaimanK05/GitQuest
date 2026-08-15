@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import com.gitquest.ui.sandbox.CommitGraphView?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Accordion?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.CheckBox?>
+<?import javafx.scene.control.ChoiceBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ListView?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.control.TitledPane?>
+<?import javafx.scene.control.ToggleButton?>
+<?import javafx.scene.control.Tooltip?>
+<?import javafx.scene.control.TreeView?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+
+<BorderPane xmlns="http://javafx.com/javafx"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.gitquest.ui.sandbox.SandboxController"
+            styleClass="root">
+
+    <!-- ================= LEFT: collapsible sidebar ================= -->
+    <left>
+        <VBox fx:id="sidebarContainer" styleClass="sidebar" prefWidth="280" minWidth="40">
+            <HBox alignment="CENTER_LEFT" spacing="4">
+                <padding>
+                    <Insets top="6" right="6" bottom="6" left="6"/>
+                </padding>
+                <Button fx:id="collapseSidebarButton" text="&#10094;">
+                    <tooltip>
+                        <Tooltip text="Collapse/expand sidebar"/>
+                    </tooltip>
+                </Button>
+            </HBox>
+
+            <VBox fx:id="sidebarContent" spacing="10" VBox.vgrow="ALWAYS">
+                <padding>
+                    <Insets top="0" right="10" bottom="10" left="10"/>
+                </padding>
+
+                <!-- File tree -->
+                <Label text="Files" styleClass="section-heading"/>
+                <TreeView fx:id="fileTree" VBox.vgrow="ALWAYS" prefHeight="220"/>
+
+                <!-- Palette / terminal toggle -->
+                <HBox spacing="8" alignment="CENTER_LEFT">
+                    <Label text="Commands" styleClass="section-heading" HBox.hgrow="ALWAYS"/>
+                    <ToggleButton fx:id="terminalToggleButton" text="Terminal" selected="true">
+                        <tooltip>
+                            <Tooltip text="Show a raw command line at the bottom, next to the log"/>
+                        </tooltip>
+                    </ToggleButton>
+                </HBox>
+
+                <!-- Button palette (collapsible sections) -->
+                <Accordion fx:id="commandAccordion" VBox.vgrow="ALWAYS">
+                    <panes>
+                        <TitledPane text="Working Tree" expanded="true">
+                            <VBox spacing="8">
+                                <padding>
+                                    <Insets top="8" right="8" bottom="8" left="8"/>
+                                </padding>
+                                <Button fx:id="stageButton" text="Stage All" maxWidth="Infinity">
+                                    <tooltip>
+                                        <Tooltip text="git add . — stage all working-tree changes for the next commit."/>
+                                    </tooltip>
+                                </Button>
+                                <Button fx:id="commitButton" text="Commit..." styleClass="accent" maxWidth="Infinity">
+                                    <tooltip>
+                                        <Tooltip text="git commit — record staged changes as a new commit."/>
+                                    </tooltip>
+                                </Button>
+                                <Button fx:id="refreshButton" text="Refresh / Log" maxWidth="Infinity">
+                                    <tooltip>
+                                        <Tooltip text="Re-read the repository from disk."/>
+                                    </tooltip>
+                                </Button>
+                            </VBox>
+                        </TitledPane>
+                        <TitledPane text="Branching" expanded="true">
+                            <VBox spacing="8">
+                                <padding>
+                                    <Insets top="8" right="8" bottom="8" left="8"/>
+                                </padding>
+                                <Button fx:id="createBranchButton" text="New Branch..." maxWidth="Infinity">
+                                    <tooltip>
+                                        <Tooltip text="git branch &lt;name&gt; — create a new branch pointing at HEAD."/>
+                                    </tooltip>
+                                </Button>
+                                <ChoiceBox fx:id="checkoutTargetChoice" maxWidth="Infinity">
+                                    <tooltip>
+                                        <Tooltip text="Pick a branch to switch to."/>
+                                    </tooltip>
+                                </ChoiceBox>
+                                <Button fx:id="checkoutButton" text="Checkout" maxWidth="Infinity">
+                                    <tooltip>
+                                        <Tooltip text="git checkout &lt;branch&gt; — switch HEAD and the working tree to that branch."/>
+                                    </tooltip>
+                                </Button>
+                            </VBox>
+                        </TitledPane>
+                        <TitledPane text="Merging" expanded="false">
+                            <VBox spacing="8">
+                                <padding>
+                                    <Insets top="8" right="8" bottom="8" left="8"/>
+                                </padding>
+                                <ChoiceBox fx:id="mergeSourceChoice" maxWidth="Infinity">
+                                    <tooltip>
+                                        <Tooltip text="Pick a branch to merge into the current branch."/>
+                                    </tooltip>
+                                </ChoiceBox>
+                                <CheckBox fx:id="noFastForwardCheck" text="No fast-forward">
+                                    <tooltip>
+                                        <Tooltip text="Always create a merge commit, even when a fast-forward is possible."/>
+                                    </tooltip>
+                                </CheckBox>
+                                <Button fx:id="mergeButton" text="Merge" maxWidth="Infinity">
+                                    <tooltip>
+                                        <Tooltip text="git merge &lt;branch&gt; — merge the selected branch into the current branch."/>
+                                    </tooltip>
+                                </Button>
+                            </VBox>
+                        </TitledPane>
+                    </panes>
+                </Accordion>
+            </VBox>
+        </VBox>
+    </left>
+
+    <!-- ================= CENTER: animated commit graph ================= -->
+    <center>
+        <ScrollPane fitToWidth="false" fitToHeight="false">
+            <content>
+                <CommitGraphView fx:id="commitGraphView"/>
+            </content>
+        </ScrollPane>
+    </center>
+
+    <!-- ================= BOTTOM: status bar + command log ================= -->
+    <bottom>
+        <VBox>
+            <HBox spacing="24" styleClass="status-bar">
+                <padding>
+                    <Insets top="8" right="16" bottom="8" left="16"/>
+                </padding>
+                <Label fx:id="branchLabel"/>
+                <Label fx:id="headLabel"/>
+                <Label fx:id="dirtyLabel"/>
+            </HBox>
+            <ListView fx:id="commandLog" prefHeight="140" styleClass="command-log"/>
+            <HBox fx:id="terminalInputBox" spacing="6" visible="true" managed="true">
+                <padding>
+                    <Insets top="4" right="16" bottom="8" left="16"/>
+                </padding>
+                <Label text="&gt;" styleClass="terminal-prompt"/>
+                <TextField fx:id="terminalInputField" styleClass="terminal-input" promptText="commit -m &quot;message&quot;" HBox.hgrow="ALWAYS"/>
+            </HBox>
+        </VBox>
+    </bottom>
+
+</BorderPane>

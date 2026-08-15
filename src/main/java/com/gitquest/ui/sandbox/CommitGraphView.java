@@ -20,7 +20,6 @@ import javafx.animation.TranslateTransition;
 import javafx.scene.Group;
 import javafx.scene.control.Label;
 import javafx.scene.layout.Pane;
-import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 import javafx.scene.shape.Line;
 import javafx.scene.text.TextFlow;
@@ -44,6 +43,7 @@ public final class CommitGraphView extends Pane {
     private ObjectId currentHeadCommitId;
 
     public CommitGraphView() {
+        getStyleClass().add("commit-graph");
         getChildren().addAll(edgesLayer, nodesLayer);
     }
 
@@ -202,8 +202,9 @@ public final class CommitGraphView extends Pane {
                 continue;
             }
             Line edge = new Line();
-            edge.setStroke(Color.web("#9AA5B1"));
+            edge.setStroke(LanePalette.forLane(commit.lane()));
             edge.setStrokeWidth(1.5);
+            edge.setOpacity(0.55);
             edge.startXProperty().bind(child.getCircle().layoutXProperty().add(child.getCircle().translateXProperty()));
             edge.startYProperty().bind(child.getCircle().layoutYProperty().add(child.getCircle().translateYProperty()));
             edge.endXProperty().bind(parent.getCircle().layoutXProperty().add(parent.getCircle().translateXProperty()));

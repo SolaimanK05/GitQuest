@@ -50,6 +50,12 @@
       <version>${javafx.version}</version>
       <classifier>${javafx.platform}</classifier>
     </dependency>
+    <dependency>
+      <groupId>org.openjfx</groupId>
+      <artifactId>javafx-fxml</artifactId>
+      <version>${javafx.version}</version>
+      <classifier>${javafx.platform}</classifier>
+    </dependency>
 
     <!-- Git engine -->
     <dependency>

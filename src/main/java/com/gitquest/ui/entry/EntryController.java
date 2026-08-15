@@ -12,29 +12,49 @@ import com.gitquest.core.service.RepositorySessionFactory;
 import com.gitquest.ui.common.ErrorDialogs;
 import com.gitquest.ui.common.Navigator;
 
+import javafx.fxml.FXML;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
+import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.TextField;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.Window;
 
-/** Wires {@link EntryView}'s buttons to {@link RepositorySessionFactory}, off the FX thread via {@link CommandService}. */
+/**
+ * Controller for {@code EntryView.fxml}. {@code FXMLLoader} instantiates
+ * this via a no-arg constructor and injects the {@code @FXML} fields before
+ * calling {@link #initialize()} — {@link #setNavigator(Navigator)} is
+ * called separately by {@code SceneRouter} right after load, since the
+ * navigator isn't available at FXML-instantiation time.
+ */
 public final class EntryController {
 
-    private final EntryView view;
-    private final Navigator navigator;
+    @FXML
+    private TextField cloneUrlField;
+    @FXML
+    private Button cloneButton;
+    @FXML
+    private Button openButton;
+    @FXML
+    private Button initializeButton;
+
+    private Navigator navigator;
     private final CommandService commandService = new CommandService();
 
-    public EntryController(EntryView view, Navigator navigator) {
-        this.view = view;
+    @FXML
+    private void initialize() {
+        cloneButton.setOnAction(e -> handleClone());
+        openButton.setOnAction(e -> handleOpen());
+        initializeButton.setOnAction(e -> handleInitialize());
+    }
+
+    public void setNavigator(Navigator navigator) {
         this.navigator = navigator;
-        view.getCloneButton().setOnAction(e -> handleClone());
-        view.getOpenButton().setOnAction(e -> handleOpen());
-        view.getInitializeButton().setOnAction(e -> handleInitialize());
     }
 
     private void handleClone() {
-        String url = view.getCloneUrlField().getText();
+        String url = cloneUrlField.getText();
         if (url == null || url.isBlank()) {
             new Alert(AlertType.WARNING, "Enter a repository URL to clone.").showAndWait();
             return;
@@ -100,15 +120,15 @@ public final class EntryController {
     }
 
     private void setBusy(boolean busy) {
-        view.getCloneButton().setDisable(busy);
-        view.getOpenButton().setDisable(busy);
-        view.getInitializeButton().setDisable(busy);
+        cloneButton.setDisable(busy);
+        openButton.setDisable(busy);
+        initializeButton.setDisable(busy);
     }
 
     private Path chooseDirectory(String title) {
         DirectoryChooser chooser = new DirectoryChooser();
         chooser.setTitle(title);
-        Window window = view.getScene() != null ? view.getScene().getWindow() : null;
+        Window window = cloneUrlField.getScene() != null ? cloneUrlField.getScene().getWindow() : null;
         File selected = chooser.showDialog(window);
         return selected != null ? selected.toPath() : null;
     }
