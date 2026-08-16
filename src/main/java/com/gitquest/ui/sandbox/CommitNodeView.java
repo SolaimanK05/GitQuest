@@ -54,6 +54,16 @@ final class CommitNodeView {
         Tooltip.install(circle, new Tooltip(commit.shortMessage() + "\n" + commit.authorName()));
     }
 
+    /**
+     * Updates just the lane (fill color + {@link #targetX()}) without touching message/tooltip —
+     * for an existing, already-rendered node whose lane changed (a sibling branch diverging or
+     * merging reshapes lane assignments for commits that were already on screen).
+     */
+    void updateLane(int lane) {
+        this.lane = lane;
+        circle.setFill(LanePalette.forLane(lane));
+    }
+
     /** Rebuilds the ref-name strip: a lane-color chip, then names (bolding the current branch). */
     void setRefNames(List<String> refNames, String currentBranchName) {
         refLabel.getChildren().clear();
