@@ -2,6 +2,7 @@
 
 <?import com.gitquest.ui.sandbox.CodeGraphView?>
 <?import com.gitquest.ui.sandbox.CommitGraphView?>
+<?import com.gitquest.ui.sandbox.ConflictDiffView?>
 <?import com.gitquest.ui.sandbox.TreemapView?>
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Accordion?>
@@ -240,6 +241,44 @@
                                 </content>
                             </ScrollPane>
                         </right>
+                    </BorderPane>
+                </Tab>
+                <Tab fx:id="conflictsTab" text="Conflicts">
+                    <BorderPane>
+                        <left>
+                            <VBox prefWidth="200" spacing="8" styleClass="sidebar">
+                                <padding>
+                                    <Insets top="12" right="12" bottom="12" left="12"/>
+                                </padding>
+                                <Label text="Conflicted Files" styleClass="section-heading"/>
+                                <ListView fx:id="conflictedFilesList" VBox.vgrow="ALWAYS"/>
+                            </VBox>
+                        </left>
+                        <center>
+                            <ScrollPane fitToWidth="true" fitToHeight="true">
+                                <content>
+                                    <ConflictDiffView fx:id="conflictDiffView"/>
+                                </content>
+                            </ScrollPane>
+                        </center>
+                        <bottom>
+                            <HBox spacing="8" styleClass="status-bar" alignment="CENTER_LEFT">
+                                <padding>
+                                    <Insets top="8" right="16" bottom="8" left="16"/>
+                                </padding>
+                                <Button fx:id="keepOursButton" text="Keep Mine">
+                                    <tooltip>
+                                        <Tooltip text="Resolve every conflicting region in this file by keeping your (ours) version, then stage it."/>
+                                    </tooltip>
+                                </Button>
+                                <Button fx:id="keepTheirsButton" text="Keep Theirs">
+                                    <tooltip>
+                                        <Tooltip text="Resolve every conflicting region in this file by keeping their (incoming) version, then stage it."/>
+                                    </tooltip>
+                                </Button>
+                                <Label text="...or edit the file directly in your own editor, then Stage All + Commit." styleClass="sub-label"/>
+                            </HBox>
+                        </bottom>
                     </BorderPane>
                 </Tab>
             </tabs>

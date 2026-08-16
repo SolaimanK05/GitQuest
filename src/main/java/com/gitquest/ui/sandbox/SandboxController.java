@@ -1,15 +1,19 @@
 package com.gitquest.ui.sandbox;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.stream.Collectors;
 
@@ -27,6 +31,7 @@ import com.gitquest.core.codegraph.JavaDependencyAnalyzer;
 import com.gitquest.core.codegraph.JavaDependencyGraph;
 import com.gitquest.core.command.CommandExecutor;
 import com.gitquest.core.command.StatusSnapshot;
+import com.gitquest.core.conflict.ConflictDiffReader;
 import com.gitquest.core.model.BranchRef;
 import com.gitquest.core.model.CommitNode;
 import com.gitquest.core.model.GraphDiff;
@@ -177,6 +182,16 @@ public final class SandboxController {
     @FXML
     private VBox codeGraphUsedByBox;
     @FXML
+    private Tab conflictsTab;
+    @FXML
+    private ListView<String> conflictedFilesList;
+    @FXML
+    private ConflictDiffView conflictDiffView;
+    @FXML
+    private Button keepOursButton;
+    @FXML
+    private Button keepTheirsButton;
+    @FXML
     private VBox campaignBanner;
     @FXML
     private Label levelTitleLabel;
@@ -240,6 +255,9 @@ public final class SandboxController {
         codeGraphView.setOnNodeSelected(this::showCodeGraphFileDetail);
         codeGraphView.setOnEdgeSelected(this::showCodeGraphEdgeDetail);
         codeGraphTimeTravelSlider.valueProperty().addListener((obs, oldVal, newVal) -> onCodeGraphScrubberChanged(newVal.intValue()));
+        conflictedFilesList.getSelectionModel().selectedItemProperty().addListener((obs, oldFile, newFile) -> loadConflictDiff(newFile));
+        keepOursButton.setOnAction(e -> resolveSelectedConflict(true));
+        keepTheirsButton.setOnAction(e -> resolveSelectedConflict(false));
         mainTabPane.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
             if (newTab == codebaseTab && !codebaseAnalysisEverLoaded) {
                 refreshCodebaseAnalysis();
@@ -253,6 +271,9 @@ public final class SandboxController {
                 } else {
                     codeGraphView.resumePhysics();
                 }
+            }
+            if (newTab == conflictsTab) {
+                refreshConflictedFilesList();
             }
         });
     }
@@ -929,8 +950,87 @@ public final class SandboxController {
                     } else if (!conflicted) {
                         conflictWarningShown = false;
                     }
+                    updateConflictedFilesListItems(status.conflicting());
+                    updatePendingMergeVisual();
                 },
                 error -> dirtyLabel.setText("Dirty files: -"));
+    }
+
+    // ---- merge conflicts (CLAUDE.md 4.3) ----
+
+    /** A pending (conflicted) merge gets a distinct dashed, pulsing placeholder on the commit graph rather than an error. */
+    private void updatePendingMergeVisual() {
+        commandService.submit(() -> {
+            List<ObjectId> mergeHeads = model.getRepository().readMergeHeads();
+            return mergeHeads != null && !mergeHeads.isEmpty() ? mergeHeads.get(0) : null;
+        }, theirsId -> {
+            if (theirsId == null) {
+                commitGraphView.clearPendingMerge();
+                return;
+            }
+            RepoSnapshot snapshot = model.snapshot();
+            CommitNode ours = snapshot.commits().stream()
+                    .filter(c -> c.id().equals(snapshot.headCommitId())).findFirst().orElse(null);
+            CommitNode theirs = snapshot.commits().stream()
+                    .filter(c -> c.id().equals(theirsId)).findFirst().orElse(null);
+            if (ours != null && theirs != null) {
+                commitGraphView.showPendingMerge(ours, theirs);
+            } else {
+                commitGraphView.clearPendingMerge();
+            }
+        }, error -> commitGraphView.clearPendingMerge());
+    }
+
+    private void updateConflictedFilesListItems(Set<String> conflicting) {
+        List<String> sorted = new ArrayList<>(conflicting);
+        Collections.sort(sorted);
+        String previousSelection = conflictedFilesList.getSelectionModel().getSelectedItem();
+        conflictedFilesList.getItems().setAll(sorted);
+        if (previousSelection != null && sorted.contains(previousSelection)) {
+            conflictedFilesList.getSelectionModel().select(previousSelection);
+        } else {
+            conflictDiffView.clear();
+        }
+    }
+
+    private void refreshConflictedFilesList() {
+        if (latestStatus != null) {
+            updateConflictedFilesListItems(latestStatus.conflicting());
+        } else {
+            refreshDirtyCount();
+        }
+    }
+
+    private void loadConflictDiff(String filePath) {
+        if (filePath == null) {
+            conflictDiffView.clear();
+            return;
+        }
+        commandService.submit(() -> ConflictDiffReader.read(model.getRepository(), filePath),
+                conflictDiffView::render,
+                error -> conflictDiffView.showMessage("Couldn't show a text diff for " + filePath
+                        + " — it may be a binary file, or a delete/rename conflict rather than two sides "
+                        + "editing the same text. Resolve it by editing the file directly (or deciding "
+                        + "whether to keep or delete it), then stage it."));
+    }
+
+    private void resolveSelectedConflict(boolean keepOurs) {
+        String filePath = conflictedFilesList.getSelectionModel().getSelectedItem();
+        if (filePath == null) {
+            return;
+        }
+        commandService.submit(() -> ConflictDiffReader.read(model.getRepository(), filePath),
+                diff -> {
+                    try {
+                        Files.writeString(repoRoot.resolve(filePath), keepOurs ? diff.oursContent() : diff.theirsContent());
+                    } catch (IOException e) {
+                        ErrorDialogs.show("Couldn't resolve conflict", e);
+                        return;
+                    }
+                    String label = keepOurs ? "Keep Mine" : "Keep Theirs";
+                    run("git add " + filePath + "  (resolved via \"" + label + "\")", commandExecutor::stageAll);
+                },
+                error -> ErrorDialogs.show("Couldn't resolve conflict", error));
     }
 
     private void setBusy(boolean busy) {
