@@ -5,10 +5,8 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * Static registry of all 6 arcs (per CLAUDE.md 4.2) and their levels. Arcs 1
- * (Foundations), 2 (Branching), and 3 (Conflicts) have authored
- * {@link LevelDefinition}s — arcs 4-6 carry metadata only and render as
- * "coming soon" in the skill tree.
+ * Static registry of all 6 arcs (per CLAUDE.md 4.2) and their levels — every
+ * arc now has authored {@link LevelDefinition}s.
  */
 public final class CampaignCatalog {
 
@@ -26,7 +24,10 @@ public final class CampaignCatalog {
     private static final List<LevelDefinition> LEVELS = Stream.of(
                     FoundationsLevels.all().stream(),
                     BranchingLevels.all().stream(),
-                    ConflictsLevels.all().stream())
+                    ConflictsLevels.all().stream(),
+                    RewritingHistoryLevels.all().stream(),
+                    RecoveryLevels.all().stream(),
+                    RemotesLevels.all().stream())
             .flatMap(stream -> stream)
             .collect(Collectors.toList());
 
