@@ -6,6 +6,8 @@ import java.util.Set;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.MergeCommand.FastForwardMode;
 import org.eclipse.jgit.api.MergeResult;
+import org.eclipse.jgit.api.MergeResult.MergeStatus;
+import org.eclipse.jgit.api.ResetCommand.ResetType;
 import org.eclipse.jgit.api.Status;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.lib.PersonIdent;
@@ -61,6 +63,12 @@ public final class CommandExecutor {
         return mutate(() -> git().branchDelete().setBranchNames(name).call());
     }
 
+    /**
+     * A {@code CONFLICTING} result is deliberately not treated as a failure
+     * here — per CLAUDE.md 4.3, a conflicted merge is a "pending" state the
+     * user resolves (see Arc 3), not an error. Only genuinely unsuccessful
+     * statuses (e.g. {@code FAILED}, {@code CHECKOUT_CONFLICT}) throw.
+     */
     public GraphDiff merge(String branchName, boolean noFastForward) {
         return mutate(() -> {
             Repository repository = model.getRepository();
@@ -72,9 +80,27 @@ public final class CommandExecutor {
                     .include(branchRef)
                     .setFastForward(noFastForward ? FastForwardMode.NO_FF : FastForwardMode.FF)
                     .call();
-            if (!result.getMergeStatus().isSuccessful()) {
-                throw new GitCommandException("Merge did not complete: " + result.getMergeStatus());
+            MergeStatus status = result.getMergeStatus();
+            if (!status.isSuccessful() && status != MergeStatus.CONFLICTING) {
+                throw new GitCommandException("Merge did not complete: " + status);
             }
+        });
+    }
+
+    /**
+     * Cancels an in-progress conflicted merge, mirroring {@code git merge
+     * --abort}: hard-resets the working tree/index back to HEAD (which a
+     * conflicting non-fast-forward merge never moved) and clears the
+     * {@code MERGE_HEAD}/{@code MERGE_MSG} state JGit's own
+     * {@link org.eclipse.jgit.api.CommitCommand} would otherwise pick up on
+     * the next commit.
+     */
+    public GraphDiff abortMerge() {
+        return mutate(() -> {
+            git().reset().setMode(ResetType.HARD).call();
+            Repository repository = model.getRepository();
+            repository.writeMergeHeads(null);
+            repository.writeMergeCommitMsg(null);
         });
     }
 
