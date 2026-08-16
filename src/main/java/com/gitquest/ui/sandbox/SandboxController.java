@@ -749,6 +749,13 @@ public final class SandboxController {
             runRefresh(trimmed);
             return;
         }
+        if (verb.equals("reflog")) {
+            logLine(trimmed);
+            commandService.submit(commandExecutor::reflog,
+                    lines -> lines.forEach(line -> logLine("  " + line)),
+                    error -> logLine("  ✗ " + rootMessage(error)));
+            return;
+        }
         run(trimmed, () -> TerminalCommandParser.execute(trimmed, commandExecutor));
     }
 
