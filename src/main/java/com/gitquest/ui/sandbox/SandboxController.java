@@ -1,9 +1,14 @@
 package com.gitquest.ui.sandbox;
 
 import java.nio.file.Path;
+import java.time.Instant;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.stream.Collectors;
@@ -12,9 +17,14 @@ import org.eclipse.jgit.lib.ObjectId;
 
 import com.gitquest.core.campaign.CampaignProgress;
 import com.gitquest.core.campaign.LevelDefinition;
+import com.gitquest.core.codebase.CodebaseAnalyzer;
+import com.gitquest.core.codebase.FileEntry;
+import com.gitquest.core.codebase.HistoricalTreeReader;
+import com.gitquest.core.codebase.WorkingTreeScanner;
 import com.gitquest.core.command.CommandExecutor;
 import com.gitquest.core.command.StatusSnapshot;
 import com.gitquest.core.model.BranchRef;
+import com.gitquest.core.model.CommitNode;
 import com.gitquest.core.model.GraphDiff;
 import com.gitquest.core.model.RepoSnapshot;
 import com.gitquest.core.model.RepoStateModel;
@@ -39,6 +49,10 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.Slider;
+import javafx.scene.control.Tab;
+import javafx.scene.control.TabPane;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextInputDialog;
 import javafx.scene.control.TreeItem;
@@ -59,6 +73,7 @@ import javafx.util.Duration;
 public final class SandboxController {
 
     private static final DateTimeFormatter LOG_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
+    private static final DateTimeFormatter SCRUBBER_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
     private static final double SIDEBAR_EXPANDED_WIDTH = 280;
     private static final double SIDEBAR_COLLAPSED_WIDTH = 40;
     private static final Duration SIDEBAR_ANIMATION = Duration.millis(220);
@@ -106,6 +121,30 @@ public final class SandboxController {
     @FXML
     private Button mergeButton;
     @FXML
+    private TabPane mainTabPane;
+    @FXML
+    private Tab codebaseTab;
+    @FXML
+    private ChoiceBox<String> treemapOverlayChoice;
+    @FXML
+    private Button refreshAnalysisButton;
+    @FXML
+    private Slider timeTravelSlider;
+    @FXML
+    private Label timeTravelLabel;
+    @FXML
+    private ScrollPane treemapScrollPane;
+    @FXML
+    private TreemapView treemapView;
+    @FXML
+    private VBox fileDetailPanel;
+    @FXML
+    private Label fileDetailPathLabel;
+    @FXML
+    private Label fileDetailStatsLabel;
+    @FXML
+    private Label fileDetailLastCommitLabel;
+    @FXML
     private VBox campaignBanner;
     @FXML
     private Label levelTitleLabel;
@@ -131,6 +170,14 @@ public final class SandboxController {
     private boolean levelCompletedThisSession;
     private boolean conflictWarningShown;
 
+    // ---- codebase visualizer state (CLAUDE.md 4.3) ----
+    private Map<String, CodebaseAnalyzer.FileStats> fileStatsByPath = Map.of();
+    private FileEntry liveWorkingTreeRoot;
+    private FileEntry currentTreemapRoot;
+    private List<CommitNode> historyForScrubber = List.of();
+    private int lastRenderedScrubberIndex = -1;
+    private boolean codebaseAnalysisEverLoaded;
+
     @FXML
     private void initialize() {
         stageButton.setOnAction(e -> run("git add .", () -> commandExecutor.stageAll()));
@@ -142,6 +189,20 @@ public final class SandboxController {
 
         collapseSidebarButton.setOnAction(e -> toggleSidebar());
         terminalInputField.setOnAction(e -> handleTerminalCommand());
+
+        treemapOverlayChoice.getItems().setAll("Size", "Churn", "Recency");
+        treemapOverlayChoice.setValue("Size");
+        treemapOverlayChoice.getSelectionModel().selectedItemProperty()
+                .addListener((obs, oldVal, newVal) -> renderTreemap());
+        treemapView.setOnFileSelected(this::showFileDetail);
+        refreshAnalysisButton.setOnAction(e -> refreshCodebaseAnalysis());
+        timeTravelSlider.valueProperty().addListener((obs, oldVal, newVal) -> onScrubberChanged(newVal.intValue()));
+        treemapScrollPane.viewportBoundsProperty().addListener((obs, oldBounds, newBounds) -> renderTreemap());
+        mainTabPane.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
+            if (newTab == codebaseTab && !codebaseAnalysisEverLoaded) {
+                refreshCodebaseAnalysis();
+            }
+        });
     }
 
     /** Finishes wiring once the repo session is known — see class javadoc. */
@@ -173,6 +234,19 @@ public final class SandboxController {
         TreeItem<Path> newTree = FileTreeBuilder.buildTree(repoRoot);
         Platform.runLater(() -> fileTree.setRoot(newTree));
         refreshDirtyCount();
+        // Keep file sizes live without re-running the (expensive, per-file git log) churn
+        // analysis on every edit — that stays a manual "Refresh Analysis" action.
+        if (codebaseAnalysisEverLoaded) {
+            commandService.submit(() -> WorkingTreeScanner.scan(repoRoot),
+                    workingTree -> {
+                        liveWorkingTreeRoot = workingTree;
+                        if (isViewingLive()) {
+                            currentTreemapRoot = workingTree;
+                            renderTreemap();
+                        }
+                    },
+                    error -> { /* transient scan failure; the next file-watcher tick will retry */ });
+        }
     }
 
     // ---- campaign mode ----
@@ -242,6 +316,149 @@ public final class SandboxController {
                 ButtonType.OK);
         done.setHeaderText("🎉 " + activeLevel.title() + " complete");
         done.showAndWait();
+    }
+
+    // ---- codebase visualizer (CLAUDE.md 4.3) ----
+
+    private record CodebaseSnapshot(FileEntry workingTree, Map<String, CodebaseAnalyzer.FileStats> stats) {
+    }
+
+    private void refreshCodebaseAnalysis() {
+        codebaseAnalysisEverLoaded = true;
+        logLine("Analyzing codebase (churn/recency)...");
+        commandService.submit(this::computeCodebaseSnapshot, this::onCodebaseAnalysisLoaded,
+                error -> logLine("  ✗ codebase analysis failed: " + rootMessage(error)));
+    }
+
+    /** Off the FX thread: a full working-tree scan plus one path-filtered {@code git log} per file. */
+    private CodebaseSnapshot computeCodebaseSnapshot() throws Exception {
+        FileEntry workingTree = WorkingTreeScanner.scan(repoRoot);
+        Map<String, CodebaseAnalyzer.FileStats> stats = new HashMap<>();
+        for (String path : collectFilePaths(workingTree)) {
+            stats.put(path, CodebaseAnalyzer.analyze(model.getGit(), path));
+        }
+        return new CodebaseSnapshot(workingTree, stats);
+    }
+
+    private static List<String> collectFilePaths(FileEntry entry) {
+        List<String> paths = new ArrayList<>();
+        collectFilePaths(entry, paths);
+        return paths;
+    }
+
+    private static void collectFilePaths(FileEntry entry, List<String> out) {
+        if (entry.directory()) {
+            for (FileEntry child : entry.children()) {
+                collectFilePaths(child, out);
+            }
+        } else {
+            out.add(entry.relativePath());
+        }
+    }
+
+    private void onCodebaseAnalysisLoaded(CodebaseSnapshot snapshot) {
+        liveWorkingTreeRoot = snapshot.workingTree();
+        fileStatsByPath = snapshot.stats();
+        logLine("  ✓ codebase analysis done (" + fileStatsByPath.size() + " file(s))");
+        setupTimeTravelSlider();
+    }
+
+    /** Slider position {@code historyForScrubber.size()} means "live" (the working tree, dirty edits included). */
+    private void setupTimeTravelSlider() {
+        historyForScrubber = model.snapshot().commits();
+        int liveIndex = historyForScrubber.size();
+        timeTravelSlider.setMin(0);
+        timeTravelSlider.setMax(liveIndex);
+        lastRenderedScrubberIndex = -1; // force a render even if the value doesn't actually change below
+        if (timeTravelSlider.getValue() == liveIndex) {
+            onScrubberChanged(liveIndex);
+        } else {
+            timeTravelSlider.setValue(liveIndex);
+        }
+    }
+
+    private boolean isViewingLive() {
+        return Math.round(timeTravelSlider.getValue()) >= historyForScrubber.size();
+    }
+
+    /** Reads the historical tree at a scrubbed commit via {@link HistoricalTreeReader} — no checkout, live working tree untouched. */
+    private void onScrubberChanged(int index) {
+        if (index == lastRenderedScrubberIndex || liveWorkingTreeRoot == null) {
+            return;
+        }
+        lastRenderedScrubberIndex = index;
+        updateScrubberLabel(index);
+        if (index >= historyForScrubber.size()) {
+            currentTreemapRoot = liveWorkingTreeRoot;
+            renderTreemap();
+            return;
+        }
+        ObjectId commitId = historyForScrubber.get(index).id();
+        commandService.submit(() -> HistoricalTreeReader.read(model.getRepository(), commitId),
+                tree -> {
+                    currentTreemapRoot = tree;
+                    renderTreemap();
+                },
+                error -> logLine("  ✗ couldn't read history at that point: " + rootMessage(error)));
+    }
+
+    private void updateScrubberLabel(int index) {
+        if (index >= historyForScrubber.size()) {
+            timeTravelLabel.setText("Live (working tree)");
+            return;
+        }
+        CommitNode commit = historyForScrubber.get(index);
+        String when = SCRUBBER_TIME.format(Instant.ofEpochSecond(commit.commitEpochSeconds()).atZone(ZoneId.systemDefault()));
+        timeTravelLabel.setText(when + " — " + commit.shortMessage());
+    }
+
+    /** Re-lays out {@link #currentTreemapRoot} to fill the scroll pane's viewport, morphing existing cells (CLAUDE.md Section 6). */
+    private void renderTreemap() {
+        if (currentTreemapRoot == null) {
+            return;
+        }
+        treemapView.setColorFunction(currentColorFunction());
+        var viewport = treemapScrollPane.getViewportBounds();
+        double width = Math.max(viewport.getWidth(), 200);
+        double height = Math.max(viewport.getHeight(), 200);
+        treemapView.render(currentTreemapRoot, width, height);
+    }
+
+    private java.util.function.Function<FileEntry, javafx.scene.paint.Color> currentColorFunction() {
+        return switch (treemapOverlayChoice.getValue()) {
+            case "Churn" -> TreemapColorModes.byChurn(fileStatsByPath);
+            case "Recency" -> TreemapColorModes.byRecency(fileStatsByPath);
+            default -> TreemapColorModes.byExtension();
+        };
+    }
+
+    private void showFileDetail(FileEntry entry) {
+        fileDetailPanel.setVisible(true);
+        fileDetailPanel.setManaged(true);
+        fileDetailPathLabel.setText(entry.relativePath());
+
+        CodebaseAnalyzer.FileStats stats = fileStatsByPath.get(entry.relativePath());
+        if (stats == null || stats.commitCount() == 0) {
+            fileDetailStatsLabel.setText(humanSize(entry.size()) + " — not yet committed");
+            fileDetailLastCommitLabel.setText("");
+            return;
+        }
+        fileDetailStatsLabel.setText(humanSize(entry.size()) + " — " + stats.commitCount() + " commit(s) — "
+                + stats.contributors().size() + " contributor(s): " + String.join(", ", stats.contributors()));
+        String lastWhen = SCRUBBER_TIME.format(
+                Instant.ofEpochSecond(stats.lastCommitEpochSeconds()).atZone(ZoneId.systemDefault()));
+        fileDetailLastCommitLabel.setText("Last: \"" + stats.lastCommitMessage() + "\" (" + lastWhen + ")");
+    }
+
+    private static String humanSize(long bytes) {
+        if (bytes < 1024) {
+            return bytes + " B";
+        }
+        double kb = bytes / 1024.0;
+        if (kb < 1024) {
+            return String.format("%.1f KB", kb);
+        }
+        return String.format("%.1f MB", kb / 1024.0);
     }
 
     // ---- sidebar / terminal chrome ----
@@ -361,6 +578,7 @@ public final class SandboxController {
         refreshDirtyCount();
         refreshFileTree();
         checkLevelGoal();
+        refreshScrubberRangeAfterCommand();
     }
 
     private void onManualRefresh(RepoSnapshot snapshot) {
@@ -373,6 +591,26 @@ public final class SandboxController {
         refreshDirtyCount();
         refreshFileTree();
         checkLevelGoal();
+        refreshScrubberRangeAfterCommand();
+    }
+
+    /** New commits extend the time-travel scrubber's range; only bumps the position (not a re-analysis) when already viewing live. */
+    private void refreshScrubberRangeAfterCommand() {
+        if (!codebaseAnalysisEverLoaded) {
+            return;
+        }
+        boolean wasAtLive = isViewingLive();
+        historyForScrubber = model.snapshot().commits();
+        int liveIndex = historyForScrubber.size();
+        timeTravelSlider.setMax(liveIndex);
+        if (wasAtLive) {
+            if (timeTravelSlider.getValue() == liveIndex) {
+                lastRenderedScrubberIndex = -1;
+                onScrubberChanged(liveIndex);
+            } else {
+                timeTravelSlider.setValue(liveIndex);
+            }
+        }
     }
 
     private void onError(Throwable error) {
