@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import com.gitquest.ui.sandbox.CommitGraphView?>
+<?import com.gitquest.ui.sandbox.TreemapView?>
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Accordion?>
 <?import javafx.scene.control.Button?>
@@ -9,6 +10,9 @@
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ListView?>
 <?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.Slider?>
+<?import javafx.scene.control.Tab?>
+<?import javafx.scene.control.TabPane?>
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.control.TitledPane?>
 <?import javafx.scene.control.Tooltip?>
@@ -139,13 +143,58 @@
         </VBox>
     </left>
 
-    <!-- ================= CENTER: animated commit graph ================= -->
+    <!-- ================= CENTER: animated commit graph + codebase visualizer tabs ================= -->
     <center>
-        <ScrollPane fitToWidth="false" fitToHeight="false">
-            <content>
-                <CommitGraphView fx:id="commitGraphView"/>
-            </content>
-        </ScrollPane>
+        <TabPane fx:id="mainTabPane" tabClosingPolicy="UNAVAILABLE">
+            <tabs>
+                <Tab text="Commit Graph">
+                    <ScrollPane fitToWidth="false" fitToHeight="false">
+                        <content>
+                            <CommitGraphView fx:id="commitGraphView"/>
+                        </content>
+                    </ScrollPane>
+                </Tab>
+                <Tab fx:id="codebaseTab" text="Codebase">
+                    <BorderPane>
+                        <top>
+                            <HBox spacing="12" styleClass="status-bar" alignment="CENTER_LEFT">
+                                <padding>
+                                    <Insets top="8" right="16" bottom="8" left="16"/>
+                                </padding>
+                                <Label text="Color by:"/>
+                                <ChoiceBox fx:id="treemapOverlayChoice"/>
+                                <Button fx:id="refreshAnalysisButton" text="Refresh Analysis">
+                                    <tooltip>
+                                        <Tooltip text="Re-scan the working tree and recompute churn/recency stats from history."/>
+                                    </tooltip>
+                                </Button>
+                                <Label text="History:" style="-fx-padding: 0 0 0 16;"/>
+                                <Slider fx:id="timeTravelSlider" HBox.hgrow="ALWAYS" min="0" max="0" value="0" majorTickUnit="1"/>
+                                <Label fx:id="timeTravelLabel" minWidth="240"/>
+                            </HBox>
+                        </top>
+                        <center>
+                            <ScrollPane fx:id="treemapScrollPane" fitToWidth="true" fitToHeight="true">
+                                <content>
+                                    <TreemapView fx:id="treemapView"/>
+                                </content>
+                            </ScrollPane>
+                        </center>
+                        <right>
+                            <VBox fx:id="fileDetailPanel" prefWidth="240" spacing="6" styleClass="sidebar" visible="false" managed="false">
+                                <padding>
+                                    <Insets top="12" right="12" bottom="12" left="12"/>
+                                </padding>
+                                <Label text="File Details" styleClass="section-heading"/>
+                                <Label fx:id="fileDetailPathLabel" wrapText="true" style="-fx-font-weight: bold;"/>
+                                <Label fx:id="fileDetailStatsLabel" wrapText="true" styleClass="sub-label"/>
+                                <Label fx:id="fileDetailLastCommitLabel" wrapText="true" styleClass="sub-label"/>
+                            </VBox>
+                        </right>
+                    </BorderPane>
+                </Tab>
+            </tabs>
+        </TabPane>
     </center>
 
     <!-- ================= BOTTOM: status bar + command log ================= -->
