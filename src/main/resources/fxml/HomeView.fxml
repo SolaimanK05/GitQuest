@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import com.gitquest.ui.home.SkillTreeThumbnail?>
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Label?>
@@ -17,6 +18,8 @@
             </padding>
             <Label text="GitQuest" style="-fx-font-size: 34px; -fx-font-weight: bold; -fx-text-fill: -git-accent;"/>
             <Label text="Learn Git by doing it." styleClass="sub-label"/>
+
+            <SkillTreeThumbnail fx:id="skillTreeThumbnail"/>
 
             <VBox alignment="CENTER" spacing="12" maxWidth="280">
                 <Button fx:id="campaignButton" text="Guided Campaign" styleClass="accent" maxWidth="Infinity"/>
