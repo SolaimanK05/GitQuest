@@ -14,7 +14,7 @@ import com.gitquest.core.model.GraphDiff;
  * "toggle to a real terminal-style text input for confident users". Supports
  * {@code add}, {@code commit -m "message"}, {@code branch <name>},
  * {@code checkout <name>}, {@code merge <name> [--no-ff]},
- * {@code delete <name>}. {@code status}
+ * {@code merge --abort}, {@code delete <name>}. {@code status}
  * and {@code refresh}/{@code log} don't produce a {@link GraphDiff} and are
  * special-cased by the caller before reaching this parser. Unrecognized
  * input throws {@link IllegalArgumentException} so the caller can log it as
@@ -44,6 +44,9 @@ final class TerminalCommandParser {
             case "checkout":
                 return executor.checkout(requireArg(tokens, verb));
             case "merge": {
+                if (tokens.contains("--abort")) {
+                    return executor.abortMerge();
+                }
                 String branch = requireArg(tokens, verb);
                 boolean noFastForward = tokens.contains("--no-ff");
                 return executor.merge(branch, noFastForward);
@@ -53,7 +56,7 @@ final class TerminalCommandParser {
             default:
                 throw new IllegalArgumentException("Unknown command: " + verb
                         + ". Supported: add, commit -m \"...\", branch <name>, checkout <name>, merge <name> [--no-ff], "
-                        + "delete <name>, status, refresh");
+                        + "merge --abort, delete <name>, status, refresh");
         }
     }
 

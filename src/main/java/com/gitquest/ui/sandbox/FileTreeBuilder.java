@@ -79,7 +79,13 @@ final class FileTreeBuilder {
 
                 String relative = repoRoot.relativize(path).toString().replace('\\', '/');
                 StatusSnapshot status = statusSupplier.get();
-                setStyle(status != null && isDirty(status, relative) ? "-fx-text-fill: #FFC857;" : "");
+                if (status != null && status.conflicting().contains(relative)) {
+                    // Distinct from the plain "dirty" yellow — a conflict is a
+                    // pending decision the user must make, not just an edit.
+                    setStyle("-fx-text-fill: #F14C4C; -fx-font-weight: bold;");
+                } else {
+                    setStyle(status != null && isDirty(status, relative) ? "-fx-text-fill: #FFC857;" : "");
+                }
             }
         };
     }

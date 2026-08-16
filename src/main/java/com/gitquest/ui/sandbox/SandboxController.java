@@ -129,6 +129,7 @@ public final class SandboxController {
     private LevelDefinition activeLevel;
     private int hintTierUsed;
     private boolean levelCompletedThisSession;
+    private boolean conflictWarningShown;
 
     @FXML
     private void initialize() {
@@ -427,6 +428,16 @@ public final class SandboxController {
                     latestStatus = status;
                     dirtyLabel.setText("Dirty files: " + status.dirtyFileCount());
                     fileTree.refresh();
+                    // Conflicts are a pending state, not a failure (CLAUDE.md 4.3) — flag it
+                    // once on the transition into conflict rather than on every refresh.
+                    boolean conflicted = !status.conflicting().isEmpty();
+                    if (conflicted && !conflictWarningShown) {
+                        conflictWarningShown = true;
+                        logLine("  ⚠ merge conflict pending in " + String.join(", ", status.conflicting())
+                                + " — resolve it by hand or run \"merge --abort\"");
+                    } else if (!conflicted) {
+                        conflictWarningShown = false;
+                    }
                 },
                 error -> dirtyLabel.setText("Dirty files: -"));
     }
