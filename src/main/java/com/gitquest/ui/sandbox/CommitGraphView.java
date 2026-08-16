@@ -15,11 +15,15 @@ import com.gitquest.core.model.GraphDiff.LaneShift;
 import javafx.animation.Animation;
 import javafx.animation.FadeTransition;
 import javafx.animation.Interpolator;
+import javafx.animation.KeyFrame;
+import javafx.animation.KeyValue;
 import javafx.animation.ParallelTransition;
+import javafx.animation.Timeline;
 import javafx.animation.TranslateTransition;
 import javafx.scene.Group;
 import javafx.scene.control.Label;
 import javafx.scene.layout.Pane;
+import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 import javafx.scene.shape.Line;
 import javafx.scene.text.TextFlow;
@@ -36,11 +40,19 @@ public final class CommitGraphView extends Pane {
 
     private static final Duration ANIMATION_DURATION = Duration.millis(420);
 
+    private static final Color PENDING_MERGE_COLOR = Color.web("#F05133");
+
     private final Map<ObjectId, CommitNodeView> nodesById = new HashMap<>();
     private final Set<String> renderedEdgeKeys = new HashSet<>();
     private final Group edgesLayer = new Group();
     private final Group nodesLayer = new Group();
     private ObjectId currentHeadCommitId;
+
+    private Circle pendingMergeCircle;
+    private Label pendingMergeLabel;
+    private Line pendingMergeLineToOurs;
+    private Line pendingMergeLineToTheirs;
+    private Timeline pendingMergePulse;
 
     public CommitGraphView() {
         getStyleClass().add("commit-graph");
@@ -54,6 +66,14 @@ public final class CommitGraphView extends Pane {
         edgesLayer.getChildren().clear();
         nodesLayer.getChildren().clear();
         currentHeadCommitId = null;
+        pendingMergeCircle = null;
+        pendingMergeLabel = null;
+        pendingMergeLineToOurs = null;
+        pendingMergeLineToTheirs = null;
+        if (pendingMergePulse != null) {
+            pendingMergePulse.stop();
+            pendingMergePulse = null;
+        }
 
         for (CommitNode commit : commits) {
             addNodeView(commit);
@@ -112,6 +132,93 @@ public final class CommitGraphView extends Pane {
         if (newHead != null) {
             newHead.setHead(true);
         }
+    }
+
+    /**
+     * A conflicted merge is a pending state, not a failure (CLAUDE.md 4.3) — shown as a dashed,
+     * gently pulsing placeholder at the would-be merge commit's position (one row below the later
+     * of the two tips, centered between their lanes), with dashed lines back to both parents. Once
+     * the merge completes (or is aborted), the caller stops calling this and the placeholder is
+     * cleared — the real merge commit then fades in through the normal {@link #animateDiff} path.
+     */
+    public void showPendingMerge(CommitNode ours, CommitNode theirs) {
+        double oursX = CommitNodeView.MARGIN_X + ours.lane() * CommitNodeView.LANE_WIDTH;
+        double oursY = CommitNodeView.MARGIN_Y + ours.sequenceIndex() * CommitNodeView.ROW_HEIGHT;
+        double theirsX = CommitNodeView.MARGIN_X + theirs.lane() * CommitNodeView.LANE_WIDTH;
+        double theirsY = CommitNodeView.MARGIN_Y + theirs.sequenceIndex() * CommitNodeView.ROW_HEIGHT;
+        int row = Math.max(ours.sequenceIndex(), theirs.sequenceIndex()) + 1;
+        double x = (oursX + theirsX) / 2;
+        double y = CommitNodeView.MARGIN_Y + row * CommitNodeView.ROW_HEIGHT;
+
+        ensurePendingMergeNodesExist();
+
+        pendingMergeCircle.setCenterX(x);
+        pendingMergeCircle.setCenterY(y);
+        pendingMergeLabel.setLayoutX(x + CommitNodeView.RADIUS + 6);
+        pendingMergeLabel.setLayoutY(y - 8);
+        pendingMergeLineToOurs.setStartX(oursX);
+        pendingMergeLineToOurs.setStartY(oursY);
+        pendingMergeLineToOurs.setEndX(x);
+        pendingMergeLineToOurs.setEndY(y);
+        pendingMergeLineToTheirs.setStartX(theirsX);
+        pendingMergeLineToTheirs.setStartY(theirsY);
+        pendingMergeLineToTheirs.setEndX(x);
+        pendingMergeLineToTheirs.setEndY(y);
+
+        setPrefWidth(Math.max(getPrefWidth(), x + 160));
+        setPrefHeight(Math.max(getPrefHeight(), y + 80));
+    }
+
+    public void clearPendingMerge() {
+        if (pendingMergeCircle == null) {
+            return;
+        }
+        pendingMergePulse.stop();
+        nodesLayer.getChildren().removeAll(pendingMergeCircle, pendingMergeLabel);
+        edgesLayer.getChildren().removeAll(pendingMergeLineToOurs, pendingMergeLineToTheirs);
+        pendingMergeCircle = null;
+        pendingMergeLabel = null;
+        pendingMergeLineToOurs = null;
+        pendingMergeLineToTheirs = null;
+        pendingMergePulse = null;
+    }
+
+    private void ensurePendingMergeNodesExist() {
+        if (pendingMergeCircle != null) {
+            return;
+        }
+        pendingMergeCircle = new Circle(CommitNodeView.RADIUS);
+        pendingMergeCircle.setFill(Color.TRANSPARENT);
+        pendingMergeCircle.setStroke(PENDING_MERGE_COLOR);
+        pendingMergeCircle.setStrokeWidth(2);
+        pendingMergeCircle.getStrokeDashArray().addAll(4.0, 4.0);
+
+        pendingMergeLabel = new Label("merge pending…");
+        pendingMergeLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #F05133; -fx-font-style: italic;");
+        pendingMergeLabel.setMouseTransparent(true);
+
+        pendingMergeLineToOurs = pendingMergeDashedLine();
+        pendingMergeLineToTheirs = pendingMergeDashedLine();
+
+        edgesLayer.getChildren().addAll(pendingMergeLineToOurs, pendingMergeLineToTheirs);
+        nodesLayer.getChildren().addAll(pendingMergeCircle, pendingMergeLabel);
+
+        pendingMergePulse = new Timeline(
+                new KeyFrame(Duration.ZERO, new KeyValue(pendingMergeCircle.opacityProperty(), 1.0)),
+                new KeyFrame(Duration.millis(700), new KeyValue(pendingMergeCircle.opacityProperty(), 0.3)),
+                new KeyFrame(Duration.millis(1400), new KeyValue(pendingMergeCircle.opacityProperty(), 1.0)));
+        pendingMergePulse.setCycleCount(Animation.INDEFINITE);
+        pendingMergePulse.play();
+    }
+
+    private static Line pendingMergeDashedLine() {
+        Line line = new Line();
+        line.setStroke(PENDING_MERGE_COLOR);
+        line.setStrokeWidth(1.2);
+        line.setOpacity(0.5);
+        line.setMouseTransparent(true);
+        line.getStrokeDashArray().addAll(3.0, 3.0);
+        return line;
     }
 
     private CommitNodeView addNodeView(CommitNode commit) {

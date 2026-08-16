@@ -2,6 +2,7 @@ package com.gitquest.core.model;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -95,7 +96,23 @@ public final class RepoStateModel {
             Map<ObjectId, List<String>> refNamesByCommit = new HashMap<>();
             List<BranchRef> collectedBranches = new ArrayList<>();
 
-            for (Ref ref : repository.getRefDatabase().getRefsByPrefix(Constants.R_HEADS)) {
+            Ref headRef = repository.exactRef(Constants.HEAD);
+            String headTargetName = (headRef != null && headRef.isSymbolic())
+                    ? headRef.getTarget().getName()
+                    : null;
+            newHeadRefName = headTargetName != null ? Repository.shortenRefName(headTargetName) : null;
+            newHeadCommitId = repository.resolve(Constants.HEAD);
+
+            // The current branch marks its start point first so JGit's own PlotWalk lane algorithm
+            // keeps IT as the straight "trunk" lane a divergent sibling branch reads as branching
+            // off of — otherwise plain ref order (alphabetical, from getRefsByPrefix) decides
+            // arbitrarily, and a same-named-earlier branch can end up looking like the continuation
+            // instead of whatever's actually checked out.
+            List<Ref> branchRefs = new ArrayList<>(repository.getRefDatabase().getRefsByPrefix(Constants.R_HEADS));
+            branchRefs.sort(Comparator.comparing(
+                    ref -> !Repository.shortenRefName(ref.getName()).equals(newHeadRefName)));
+
+            for (Ref ref : branchRefs) {
                 ObjectId commitId = ref.getObjectId();
                 if (commitId == null) {
                     continue;
@@ -105,13 +122,6 @@ public final class RepoStateModel {
                 collectedBranches.add(new BranchRef(shortName, commitId, false, false));
                 refNamesByCommit.computeIfAbsent(commitId, unused -> new ArrayList<>()).add(shortName);
             }
-
-            Ref headRef = repository.exactRef(Constants.HEAD);
-            String headTargetName = (headRef != null && headRef.isSymbolic())
-                    ? headRef.getTarget().getName()
-                    : null;
-            newHeadRefName = headTargetName != null ? Repository.shortenRefName(headTargetName) : null;
-            newHeadCommitId = repository.resolve(Constants.HEAD);
 
             newBranches = new ArrayList<>();
             for (BranchRef branch : collectedBranches) {
