@@ -22,6 +22,7 @@ import com.gitquest.core.codebase.FileEntry;
 import com.gitquest.core.codebase.HistoricalTreeReader;
 import com.gitquest.core.codebase.WorkingTreeScanner;
 import com.gitquest.core.codegraph.DependencyEdge;
+import com.gitquest.core.codegraph.HistoricalJavaSourceReader;
 import com.gitquest.core.codegraph.JavaDependencyAnalyzer;
 import com.gitquest.core.codegraph.JavaDependencyGraph;
 import com.gitquest.core.command.CommandExecutor;
@@ -60,7 +61,6 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.TextInputDialog;
 import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeView;
-import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.util.Duration;
 
@@ -155,17 +155,27 @@ public final class SandboxController {
     @FXML
     private Label codeGraphStatusLabel;
     @FXML
-    private StackPane codeGraphHost;
+    private Slider codeGraphTimeTravelSlider;
+    @FXML
+    private Label codeGraphTimeTravelLabel;
+    @FXML
+    private ScrollPane codeGraphHost;
     @FXML
     private CodeGraphView codeGraphView;
     @FXML
-    private VBox codeGraphDetailPanel;
+    private ScrollPane codeGraphDetailPanel;
+    @FXML
+    private Label codeGraphDetailHeadingLabel;
     @FXML
     private Label codeGraphSelectedPathLabel;
     @FXML
-    private Label codeGraphDependsOnLabel;
+    private Label codeGraphDependsOnHeadingLabel;
     @FXML
-    private Label codeGraphUsedByLabel;
+    private VBox codeGraphDependsOnBox;
+    @FXML
+    private Label codeGraphUsedByHeadingLabel;
+    @FXML
+    private VBox codeGraphUsedByBox;
     @FXML
     private VBox campaignBanner;
     @FXML
@@ -203,6 +213,8 @@ public final class SandboxController {
     // ---- code relationship graph state (CLAUDE.md 4.3 Tier 1) ----
     private JavaDependencyGraph currentCodeGraph;
     private boolean codeGraphEverLoaded;
+    private List<CommitNode> codeGraphHistoryForScrubber = List.of();
+    private int lastRenderedCodeGraphScrubberIndex = -1;
 
     @FXML
     private void initialize() {
@@ -227,6 +239,7 @@ public final class SandboxController {
         analyzeCodeGraphButton.setOnAction(e -> refreshCodeGraph());
         codeGraphView.setOnNodeSelected(this::showCodeGraphFileDetail);
         codeGraphView.setOnEdgeSelected(this::showCodeGraphEdgeDetail);
+        codeGraphTimeTravelSlider.valueProperty().addListener((obs, oldVal, newVal) -> onCodeGraphScrubberChanged(newVal.intValue()));
         mainTabPane.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
             if (newTab == codebaseTab && !codebaseAnalysisEverLoaded) {
                 refreshCodebaseAnalysis();
@@ -502,14 +515,81 @@ public final class SandboxController {
 
     // ---- code relationship graph (CLAUDE.md 4.3 Tier 1) ----
 
+    /** Manual "Analyze"/first-open entry point: (re)builds the scrubber range and jumps to live. */
     private void refreshCodeGraph() {
         codeGraphEverLoaded = true;
+        codeGraphHistoryForScrubber = model.snapshot().commits();
+        int liveIndex = codeGraphHistoryForScrubber.size();
+        codeGraphTimeTravelSlider.setMin(0);
+        codeGraphTimeTravelSlider.setMax(liveIndex);
+        lastRenderedCodeGraphScrubberIndex = -1; // force a load even if the value doesn't actually change below
+        if (codeGraphTimeTravelSlider.getValue() == liveIndex) {
+            onCodeGraphScrubberChanged(liveIndex);
+        } else {
+            codeGraphTimeTravelSlider.setValue(liveIndex);
+        }
+    }
+
+    private boolean isViewingLiveCodeGraph() {
+        return Math.round(codeGraphTimeTravelSlider.getValue()) >= codeGraphHistoryForScrubber.size();
+    }
+
+    /**
+     * Slider position {@code codeGraphHistoryForScrubber.size()} means "live" (parses straight off
+     * disk); any earlier position re-analyzes a historical commit's blobs via
+     * {@link HistoricalJavaSourceReader} — no checkout, so scrubbing never touches the live
+     * working directory (CLAUDE.md 4.3).
+     */
+    private void onCodeGraphScrubberChanged(int index) {
+        if (index == lastRenderedCodeGraphScrubberIndex) {
+            return;
+        }
+        lastRenderedCodeGraphScrubberIndex = index;
+        updateCodeGraphScrubberLabel(index);
         codeGraphDetailPanel.setVisible(false);
         codeGraphDetailPanel.setManaged(false);
         codeGraphStatusLabel.setText("Parsing .java files...");
-        commandService.submit(() -> JavaDependencyAnalyzer.analyze(repoRoot),
+
+        if (index >= codeGraphHistoryForScrubber.size()) {
+            commandService.submit(() -> JavaDependencyAnalyzer.analyze(repoRoot),
+                    this::onCodeGraphLoaded,
+                    error -> codeGraphStatusLabel.setText("✗ analysis failed: " + rootMessage(error)));
+            return;
+        }
+        ObjectId commitId = codeGraphHistoryForScrubber.get(index).id();
+        commandService.submit(
+                () -> JavaDependencyAnalyzer.analyzeSources(HistoricalJavaSourceReader.read(model.getRepository(), commitId)),
                 this::onCodeGraphLoaded,
                 error -> codeGraphStatusLabel.setText("✗ analysis failed: " + rootMessage(error)));
+    }
+
+    private void updateCodeGraphScrubberLabel(int index) {
+        if (index >= codeGraphHistoryForScrubber.size()) {
+            codeGraphTimeTravelLabel.setText("Live (working tree)");
+            return;
+        }
+        CommitNode commit = codeGraphHistoryForScrubber.get(index);
+        String when = SCRUBBER_TIME.format(Instant.ofEpochSecond(commit.commitEpochSeconds()).atZone(ZoneId.systemDefault()));
+        codeGraphTimeTravelLabel.setText(when + " — " + commit.shortMessage());
+    }
+
+    /** New commits extend the scrubber's range; only bumps the position (not a re-analysis) when already viewing live. */
+    private void refreshCodeGraphScrubberRangeAfterCommand() {
+        if (!codeGraphEverLoaded) {
+            return;
+        }
+        boolean wasAtLive = isViewingLiveCodeGraph();
+        codeGraphHistoryForScrubber = model.snapshot().commits();
+        int liveIndex = codeGraphHistoryForScrubber.size();
+        codeGraphTimeTravelSlider.setMax(liveIndex);
+        if (wasAtLive) {
+            if (codeGraphTimeTravelSlider.getValue() == liveIndex) {
+                lastRenderedCodeGraphScrubberIndex = -1;
+                onCodeGraphScrubberChanged(liveIndex);
+            } else {
+                codeGraphTimeTravelSlider.setValue(liveIndex);
+            }
+        }
     }
 
     private void onCodeGraphLoaded(JavaDependencyGraph graph) {
@@ -520,8 +600,15 @@ public final class SandboxController {
         }
         codeGraphStatusLabel.setText(status);
 
-        double width = codeGraphHost.getWidth() > 0 ? codeGraphHost.getWidth() : 700;
-        double height = codeGraphHost.getHeight() > 0 ? codeGraphHost.getHeight() : 500;
+        // A canvas sized to just the viewport crams every file into the same tiny box regardless
+        // of how many there are — give each file real breathing room (scrollable, per CodeGraphView's
+        // ScrollPane host) instead of always fitting to whatever's currently visible.
+        double viewportWidth = codeGraphHost.getWidth() > 0 ? codeGraphHost.getWidth() : 700;
+        double viewportHeight = codeGraphHost.getHeight() > 0 ? codeGraphHost.getHeight() : 500;
+        int fileCount = Math.max(graph.filePaths().size(), 1);
+        double side = Math.sqrt(fileCount * 34000.0);
+        double width = Math.max(viewportWidth, Math.min(side, 4600));
+        double height = Math.max(viewportHeight, Math.min(side * 0.72, 3400));
         codeGraphView.render(graph, width, height);
     }
 
@@ -532,20 +619,27 @@ public final class SandboxController {
         }
         codeGraphDetailPanel.setVisible(true);
         codeGraphDetailPanel.setManaged(true);
+        codeGraphDetailHeadingLabel.setText("Selected File");
         codeGraphSelectedPathLabel.setText(path);
+        codeGraphDependsOnHeadingLabel.setText("DEPENDS ON");
+        codeGraphUsedByHeadingLabel.setText("USED BY");
 
-        List<String> dependsOn = new ArrayList<>();
-        List<String> usedBy = new ArrayList<>();
+        codeGraphDependsOnBox.getChildren().clear();
+        codeGraphUsedByBox.getChildren().clear();
         for (DependencyEdge edge : currentCodeGraph.edges()) {
             if (edge.fromPath().equals(path)) {
-                dependsOn.add(edge.toPath() + " (" + usageSummary(edge) + ")");
+                addDetailRow(codeGraphDependsOnBox, edge.toPath(), usageSummary(edge));
             }
             if (edge.toPath().equals(path)) {
-                usedBy.add(edge.fromPath() + " (" + usageSummary(edge) + ")");
+                addDetailRow(codeGraphUsedByBox, edge.fromPath(), usageSummary(edge));
             }
         }
-        codeGraphDependsOnLabel.setText("Depends on:\n" + (dependsOn.isEmpty() ? "(nothing in this codebase)" : String.join("\n", dependsOn)));
-        codeGraphUsedByLabel.setText("Used by:\n" + (usedBy.isEmpty() ? "(nothing in this codebase)" : String.join("\n", usedBy)));
+        if (codeGraphDependsOnBox.getChildren().isEmpty()) {
+            addEmptyRow(codeGraphDependsOnBox, "Nothing in this codebase");
+        }
+        if (codeGraphUsedByBox.getChildren().isEmpty()) {
+            addEmptyRow(codeGraphUsedByBox, "Nothing in this codebase");
+        }
     }
 
     private void showCodeGraphEdgeDetail(DependencyEdge edge) {
@@ -555,17 +649,54 @@ public final class SandboxController {
         }
         codeGraphDetailPanel.setVisible(true);
         codeGraphDetailPanel.setManaged(true);
+        codeGraphDetailHeadingLabel.setText("Selected Connection");
         codeGraphSelectedPathLabel.setText(edge.fromPath() + "  →  " + edge.toPath());
-        codeGraphDependsOnLabel.setText("Type(s) referenced:\n"
-                + (edge.referencedTypeNames().isEmpty() ? "(none — only a method call)" : String.join(", ", edge.referencedTypeNames())));
-        codeGraphUsedByLabel.setText("Method call(s) detected:\n"
-                + (edge.referencedMethodNames().isEmpty() ? "(none detected — best-effort only)" : String.join(", ", edge.referencedMethodNames())));
+        codeGraphDependsOnHeadingLabel.setText("TYPE(S) REFERENCED");
+        codeGraphUsedByHeadingLabel.setText("METHOD CALL(S) DETECTED");
+
+        codeGraphDependsOnBox.getChildren().clear();
+        codeGraphUsedByBox.getChildren().clear();
+        if (edge.referencedTypeNames().isEmpty()) {
+            addEmptyRow(codeGraphDependsOnBox, "None — only a method call was detected");
+        } else {
+            edge.referencedTypeNames().forEach(type -> addSimpleRow(codeGraphDependsOnBox, type));
+        }
+        if (edge.referencedMethodNames().isEmpty()) {
+            addEmptyRow(codeGraphUsedByBox, "None detected — best-effort only");
+        } else {
+            edge.referencedMethodNames().forEach(method -> addSimpleRow(codeGraphUsedByBox, method));
+        }
     }
 
     /** A click on empty canvas fires both selection callbacks with null — only hide once both agree nothing is focused. */
     private void hideCodeGraphDetailIfEmpty() {
         codeGraphDetailPanel.setVisible(false);
         codeGraphDetailPanel.setManaged(false);
+    }
+
+    /** One "X depends on/is used by Y (because of Z)" row: the related file in bright text, the reason underneath in muted text. */
+    private static void addDetailRow(VBox box, String primaryText, String secondaryText) {
+        Label primary = new Label(primaryText);
+        primary.setWrapText(true);
+        primary.getStyleClass().add("detail-item-primary");
+        Label secondary = new Label(secondaryText);
+        secondary.setWrapText(true);
+        secondary.getStyleClass().add("detail-item-secondary");
+        box.getChildren().add(new VBox(2, primary, secondary));
+    }
+
+    private static void addSimpleRow(VBox box, String text) {
+        Label label = new Label(text);
+        label.setWrapText(true);
+        label.getStyleClass().add("detail-item-primary");
+        box.getChildren().add(label);
+    }
+
+    private static void addEmptyRow(VBox box, String text) {
+        Label label = new Label(text);
+        label.setWrapText(true);
+        label.getStyleClass().add("detail-empty");
+        box.getChildren().add(label);
     }
 
     private static String usageSummary(DependencyEdge edge) {
@@ -692,6 +823,7 @@ public final class SandboxController {
         refreshFileTree();
         checkLevelGoal();
         refreshScrubberRangeAfterCommand();
+        refreshCodeGraphScrubberRangeAfterCommand();
     }
 
     private void onManualRefresh(RepoSnapshot snapshot) {
@@ -705,6 +837,7 @@ public final class SandboxController {
         refreshFileTree();
         checkLevelGoal();
         refreshScrubberRangeAfterCommand();
+        refreshCodeGraphScrubberRangeAfterCommand();
     }
 
     /** New commits extend the time-travel scrubber's range; only bumps the position (not a re-analysis) when already viewing live. */

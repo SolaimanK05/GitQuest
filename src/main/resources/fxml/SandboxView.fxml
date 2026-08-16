@@ -20,7 +20,6 @@
 <?import javafx.scene.control.TreeView?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.HBox?>
-<?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
 
 <BorderPane xmlns="http://javafx.com/javafx"
@@ -208,23 +207,38 @@
                                     </tooltip>
                                 </Button>
                                 <Label fx:id="codeGraphStatusLabel" styleClass="sub-label"/>
+                                <Label text="History:" style="-fx-padding: 0 0 0 16;"/>
+                                <Slider fx:id="codeGraphTimeTravelSlider" HBox.hgrow="ALWAYS" min="0" max="0" value="0" majorTickUnit="1"/>
+                                <Label fx:id="codeGraphTimeTravelLabel" minWidth="240"/>
                             </HBox>
                         </top>
                         <center>
-                            <StackPane fx:id="codeGraphHost">
-                                <CodeGraphView fx:id="codeGraphView"/>
-                            </StackPane>
+                            <ScrollPane fx:id="codeGraphHost" fitToWidth="false" fitToHeight="false">
+                                <content>
+                                    <CodeGraphView fx:id="codeGraphView"/>
+                                </content>
+                            </ScrollPane>
                         </center>
                         <right>
-                            <VBox fx:id="codeGraphDetailPanel" prefWidth="240" spacing="6" styleClass="sidebar" visible="false" managed="false">
-                                <padding>
-                                    <Insets top="12" right="12" bottom="12" left="12"/>
-                                </padding>
-                                <Label text="Selected File" styleClass="section-heading"/>
-                                <Label fx:id="codeGraphSelectedPathLabel" wrapText="true" style="-fx-font-weight: bold;"/>
-                                <Label fx:id="codeGraphDependsOnLabel" wrapText="true" styleClass="sub-label"/>
-                                <Label fx:id="codeGraphUsedByLabel" wrapText="true" styleClass="sub-label"/>
-                            </VBox>
+                            <ScrollPane fx:id="codeGraphDetailPanel" prefWidth="260" fitToWidth="true" styleClass="code-graph-detail-panel" visible="false" managed="false">
+                                <content>
+                                    <VBox spacing="14">
+                                        <padding>
+                                            <Insets top="12" right="12" bottom="12" left="12"/>
+                                        </padding>
+                                        <Label fx:id="codeGraphDetailHeadingLabel" text="Selected File" styleClass="section-heading"/>
+                                        <Label fx:id="codeGraphSelectedPathLabel" wrapText="true" styleClass="detail-title"/>
+                                        <VBox spacing="4">
+                                            <Label fx:id="codeGraphDependsOnHeadingLabel" text="DEPENDS ON" styleClass="section-heading"/>
+                                            <VBox fx:id="codeGraphDependsOnBox" spacing="8"/>
+                                        </VBox>
+                                        <VBox spacing="4">
+                                            <Label fx:id="codeGraphUsedByHeadingLabel" text="USED BY" styleClass="section-heading"/>
+                                            <VBox fx:id="codeGraphUsedByBox" spacing="8"/>
+                                        </VBox>
+                                    </VBox>
+                                </content>
+                            </ScrollPane>
                         </right>
                     </BorderPane>
                 </Tab>

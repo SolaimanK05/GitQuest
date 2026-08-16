@@ -258,3 +258,39 @@
 .commit-graph {
     -fx-background-color: -bg-base;
 }
+
+/* --- Code Graph node/edge detail panel --- */
+
+.code-graph-detail-panel, .code-graph-detail-panel > .viewport {
+    -fx-background-color: -bg-panel;
+}
+
+.code-graph-detail-panel {
+    -fx-border-color: transparent -border transparent transparent;
+    -fx-border-width: 0 0 0 1px;
+}
+
+.detail-title {
+    -fx-text-fill: -text-primary;
+    -fx-font-weight: bold;
+    -fx-font-size: 14px;
+}
+
+/* The file/connection a "depends on" or "used by" row is about — brighter than the
+   description underneath it, since that's the part worth scanning for first. */
+.detail-item-primary {
+    -fx-text-fill: -text-primary;
+    -fx-font-size: 12px;
+    -fx-font-weight: 600;
+}
+
+.detail-item-secondary {
+    -fx-text-fill: -text-secondary;
+    -fx-font-size: 11px;
+}
+
+.detail-empty {
+    -fx-text-fill: -text-secondary;
+    -fx-font-style: italic;
+    -fx-font-size: 11px;
+}
