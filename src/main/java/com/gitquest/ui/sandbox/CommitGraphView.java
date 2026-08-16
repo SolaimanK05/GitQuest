@@ -1,10 +1,9 @@
 package com.gitquest.ui.sandbox;
 
+import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import org.eclipse.jgit.lib.ObjectId;
 
@@ -43,7 +42,7 @@ public final class CommitGraphView extends Pane {
     private static final Color PENDING_MERGE_COLOR = Color.web("#F05133");
 
     private final Map<ObjectId, CommitNodeView> nodesById = new HashMap<>();
-    private final Set<String> renderedEdgeKeys = new HashSet<>();
+    private final Map<String, Line> edgesByKey = new HashMap<>();
     private final Group edgesLayer = new Group();
     private final Group nodesLayer = new Group();
     private ObjectId currentHeadCommitId;
@@ -62,7 +61,7 @@ public final class CommitGraphView extends Pane {
     /** First load after Open/Init/Clone: lay out with no animation. */
     public void renderInitial(List<CommitNode> commits) {
         nodesById.clear();
-        renderedEdgeKeys.clear();
+        edgesByKey.clear();
         edgesLayer.getChildren().clear();
         nodesLayer.getChildren().clear();
         currentHeadCommitId = null;
@@ -84,10 +83,23 @@ public final class CommitGraphView extends Pane {
         resizeToContent();
     }
 
-    /** Animate a before/after diff: fade+slide new commits in, ease lane shifts sideways. */
+    /**
+     * Animate a before/after diff: fade+slide new commits in, ease lane shifts sideways, fade
+     * removed commits out. A commit disappears from the graph when it's no longer reachable from
+     * any ref (e.g. after "Undo Last Command"/a hard reset drops it from history) — without this,
+     * its node and edges would linger forever since nothing else ever prunes them.
+     */
     public void animateDiff(GraphDiff diff) {
         ParallelTransition all = new ParallelTransition();
 
+        List<ObjectId> removalsToApply = new ArrayList<>();
+        for (ObjectId removedId : diff.removedCommitIds()) {
+            CommitNodeView nodeView = nodesById.get(removedId);
+            if (nodeView != null) {
+                all.getChildren().addAll(fadeOut(nodeView));
+                removalsToApply.add(removedId);
+            }
+        }
         for (CommitNode added : diff.addedCommits()) {
             CommitNodeView nodeView = addNodeView(added);
             all.getChildren().addAll(fadeAndSlideIn(nodeView));
@@ -98,11 +110,16 @@ public final class CommitGraphView extends Pane {
         for (LaneShift shift : diff.laneShifts()) {
             CommitNodeView nodeView = nodesById.get(shift.commitId());
             if (nodeView != null) {
-                all.getChildren().addAll(slideToNewLane(nodeView, shift.oldLane()));
+                all.getChildren().addAll(slideToNewLane(nodeView, shift.oldLane(), shift.newLane()));
             }
         }
 
-        all.setOnFinished(event -> resizeToContent());
+        all.setOnFinished(event -> {
+            for (ObjectId removedId : removalsToApply) {
+                removeNodeAndEdges(removedId);
+            }
+            resizeToContent();
+        });
         all.play();
     }
 
@@ -268,8 +285,44 @@ public final class CommitGraphView extends Pane {
         return List.of(fadeCircle, fadeLabel, fadeRefs, slideCircle, slideLabel, slideRefs);
     }
 
-    private List<Animation> slideToNewLane(CommitNodeView nodeView, int oldLane) {
+    private List<Animation> fadeOut(CommitNodeView nodeView) {
+        FadeTransition fadeCircle = new FadeTransition(ANIMATION_DURATION, nodeView.getCircle());
+        fadeCircle.setToValue(0);
+        FadeTransition fadeLabel = new FadeTransition(ANIMATION_DURATION, nodeView.getMessageLabel());
+        fadeLabel.setToValue(0);
+        FadeTransition fadeRefs = new FadeTransition(ANIMATION_DURATION, nodeView.getRefLabel());
+        fadeRefs.setToValue(0);
+        return List.of(fadeCircle, fadeLabel, fadeRefs);
+    }
+
+    /** Physically removes a node (post fade-out) and every edge touching it — nothing else ever prunes stale nodes/edges. */
+    private void removeNodeAndEdges(ObjectId commitId) {
+        CommitNodeView nodeView = nodesById.remove(commitId);
+        if (nodeView == null) {
+            return;
+        }
+        nodesLayer.getChildren().removeAll(nodeView.getCircle(), nodeView.getMessageLabel(), nodeView.getRefLabel());
+        if (commitId.equals(currentHeadCommitId)) {
+            currentHeadCommitId = null;
+        }
+
+        List<String> staleKeys = new ArrayList<>();
+        String idName = commitId.name();
+        for (String key : edgesByKey.keySet()) {
+            if (key.startsWith(idName + ">") || key.endsWith(">" + idName)) {
+                staleKeys.add(key);
+            }
+        }
+        for (String key : staleKeys) {
+            edgesLayer.getChildren().remove(edgesByKey.remove(key));
+        }
+    }
+
+    private List<Animation> slideToNewLane(CommitNodeView nodeView, int oldLane, int newLane) {
         double oldX = CommitNodeView.MARGIN_X + oldLane * CommitNodeView.LANE_WIDTH;
+        // nodeView's cached lane (and thus targetX()) is still the OLD lane until this call —
+        // it was only ever set once at construction/last update, never on a lane shift.
+        nodeView.updateLane(newLane);
         double newX = nodeView.targetX();
         Circle circle = nodeView.getCircle();
         Label messageLabel = nodeView.getMessageLabel();
@@ -305,7 +358,7 @@ public final class CommitGraphView extends Pane {
                 continue;
             }
             String key = commit.id().name() + ">" + parentId.name();
-            if (!renderedEdgeKeys.add(key)) {
+            if (edgesByKey.containsKey(key)) {
                 continue;
             }
             Line edge = new Line();
@@ -317,6 +370,7 @@ public final class CommitGraphView extends Pane {
             edge.endXProperty().bind(parent.getCircle().layoutXProperty().add(parent.getCircle().translateXProperty()));
             edge.endYProperty().bind(parent.getCircle().layoutYProperty().add(parent.getCircle().translateYProperty()));
             edgesLayer.getChildren().add(edge);
+            edgesByKey.put(key, edge);
         }
     }
 

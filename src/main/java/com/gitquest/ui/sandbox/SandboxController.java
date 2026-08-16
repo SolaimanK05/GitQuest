@@ -38,6 +38,7 @@ import com.gitquest.core.model.GraphDiff;
 import com.gitquest.core.model.RepoSnapshot;
 import com.gitquest.core.model.RepoStateModel;
 import com.gitquest.core.service.CommandService;
+import com.gitquest.core.service.RemoteRefPoller;
 import com.gitquest.core.service.WorkingTreeWatcher;
 import com.gitquest.persistence.CampaignProgressStore;
 import com.gitquest.ui.common.ErrorDialogs;
@@ -110,6 +111,12 @@ public final class SandboxController {
     @FXML
     private Label dirtyLabel;
     @FXML
+    private Label remoteNoticeLabel;
+    @FXML
+    private Button fetchNowButton;
+    @FXML
+    private Button checkRemoteButton;
+    @FXML
     private ListView<String> commandLog;
     @FXML
     private Button stageButton;
@@ -129,6 +136,8 @@ public final class SandboxController {
     private CheckBox noFastForwardCheck;
     @FXML
     private Button mergeButton;
+    @FXML
+    private Button undoLastCommandButton;
     @FXML
     private TabPane mainTabPane;
     @FXML
@@ -212,6 +221,7 @@ public final class SandboxController {
     private volatile StatusSnapshot latestStatus;
     private boolean sidebarCollapsed;
     private WorkingTreeWatcher workingTreeWatcher;
+    private RemoteRefPoller remotePoller;
     private LevelDefinition activeLevel;
     private int hintTierUsed;
     private boolean levelCompletedThisSession;
@@ -239,6 +249,7 @@ public final class SandboxController {
         createBranchButton.setOnAction(e -> handleCreateBranch());
         checkoutButton.setOnAction(e -> handleCheckout());
         mergeButton.setOnAction(e -> handleMerge());
+        undoLastCommandButton.setOnAction(e -> handleUndoLastCommand());
 
         collapseSidebarButton.setOnAction(e -> toggleSidebar());
         terminalInputField.setOnAction(e -> handleTerminalCommand());
@@ -258,6 +269,8 @@ public final class SandboxController {
         conflictedFilesList.getSelectionModel().selectedItemProperty().addListener((obs, oldFile, newFile) -> loadConflictDiff(newFile));
         keepOursButton.setOnAction(e -> resolveSelectedConflict(true));
         keepTheirsButton.setOnAction(e -> resolveSelectedConflict(false));
+        fetchNowButton.setOnAction(e -> run("git fetch", commandExecutor::fetch));
+        checkRemoteButton.setOnAction(e -> handleCheckRemote());
         mainTabPane.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
             if (newTab == codebaseTab && !codebaseAnalysisEverLoaded) {
                 refreshCodebaseAnalysis();
@@ -300,6 +313,11 @@ public final class SandboxController {
         // uncommitted edits are working-tree state, not a graph node.
         workingTreeWatcher = new WorkingTreeWatcher(repoRoot, java.time.Duration.ofMillis(400), this::onWorkingTreeChanged);
         workingTreeWatcher.start();
+
+        // Passive "origin/main has new commits" notice (CLAUDE.md 4.3) — cheap ls-remote poll,
+        // never an auto-fetch/merge. No-ops harmlessly on every tick if no "origin" is configured.
+        remotePoller = new RemoteRefPoller(model.getGit(), "origin", java.time.Duration.ofSeconds(20), this::onRemoteRefsChanged);
+        remotePoller.start();
     }
 
     /** Runs on the watcher's background thread — hop to the FX thread before touching UI state. */
@@ -822,12 +840,59 @@ public final class SandboxController {
         run(description, () -> commandExecutor.merge(source, noFastForward));
     }
 
+    private record UndoPreview(boolean mergePending, List<String> reflogLines) {
+    }
+
+    /**
+     * Previews what's about to happen before committing to a destructive hard reset. A pending
+     * conflicted merge never shows up in the HEAD reflog (it doesn't move HEAD), so that case is
+     * previewed/handled separately — matching {@link CommandExecutor#undoLastCommand()}'s own
+     * merge-pending special case.
+     */
+    private void handleUndoLastCommand() {
+        commandService.submit(() -> {
+                    List<ObjectId> mergeHeads = model.getRepository().readMergeHeads();
+                    boolean mergePending = mergeHeads != null && !mergeHeads.isEmpty();
+                    return new UndoPreview(mergePending, mergePending ? List.of() : commandExecutor.reflog());
+                },
+                preview -> {
+                    String message;
+                    if (preview.mergePending()) {
+                        message = "This cancels the pending conflicted merge (same as \"merge --abort\") "
+                                + "and restores the working tree to before the merge attempt.";
+                    } else if (preview.reflogLines().isEmpty()) {
+                        logLine("Undo last command");
+                        logLine("  ✗ nothing to undo yet — the reflog is empty");
+                        return;
+                    } else {
+                        message = "This hard-resets back to just before:\n\n" + preview.reflogLines().get(0)
+                                + "\n\nAny uncommitted staged/tracked changes will be lost "
+                                + "(untracked files are left alone).";
+                    }
+                    Alert confirm = new Alert(AlertType.CONFIRMATION, message, ButtonType.YES, ButtonType.NO);
+                    confirm.setHeaderText("Undo last command?");
+                    Optional<ButtonType> choice = confirm.showAndWait();
+                    if (choice.isPresent() && choice.get() == ButtonType.YES) {
+                        run("undo last command (reflog-backed reset)", commandExecutor::undoLastCommand);
+                    }
+                },
+                error -> logLine("  ✗ couldn't check undo preview: " + rootMessage(error)));
+    }
+
     // ---- shared dispatch ----
 
     private void run(String description, Callable<GraphDiff> work) {
         logLine(description);
         setBusy(true);
-        commandService.submit(work, this::onCommandSucceeded, this::onError);
+        commandService.submit(work, diff -> {
+            onCommandSucceeded(diff);
+            // A fetch/pull just updated the remote-tracking refs the poller compares against —
+            // re-check right away instead of waiting out the rest of the polling interval.
+            String verb = description.toLowerCase();
+            if (verb.contains("fetch") || verb.contains("pull")) {
+                commandService.submit(() -> remotePoller.checkNow(), ignored -> { }, ignored -> { });
+            }
+        }, this::onError);
     }
 
     private void runRefresh(String description) {
@@ -932,6 +997,38 @@ public final class SandboxController {
         branchLabel.setText("Branch: " + branchName);
         ObjectId head = snapshot.headCommitId();
         headLabel.setText("HEAD: " + (head != null ? head.abbreviate(7).name() : "-"));
+    }
+
+    // ---- remote update notice (CLAUDE.md 4.3) ----
+
+    private void handleCheckRemote() {
+        logLine("Checking origin for updates...");
+        commandService.submit(() -> remotePoller.checkNow(),
+                changed -> {
+                    if (changed == null) {
+                        logLine("  ✗ no \"origin\" remote configured, or couldn't reach it");
+                    } else if (changed.isEmpty()) {
+                        logLine("  ✓ up to date with origin");
+                    } else {
+                        logLine("  ⬇ " + String.join(", ", changed) + " on origin has new commits");
+                    }
+                },
+                error -> logLine("  ✗ couldn't check origin: " + rootMessage(error)));
+    }
+
+    /** Called from {@link RemoteRefPoller}'s own background thread (periodic tick or manual check) — hop to FX before touching UI. */
+    private void onRemoteRefsChanged(Set<String> changedBranches) {
+        Platform.runLater(() -> {
+            boolean hasNews = !changedBranches.isEmpty();
+            if (hasNews) {
+                List<String> withOrigin = changedBranches.stream().map(name -> "origin/" + name).sorted().toList();
+                remoteNoticeLabel.setText(String.join(", ", withOrigin) + " " + (withOrigin.size() == 1 ? "has" : "have") + " new commits");
+            }
+            remoteNoticeLabel.setVisible(hasNews);
+            remoteNoticeLabel.setManaged(hasNews);
+            fetchNowButton.setVisible(hasNews);
+            fetchNowButton.setManaged(hasNews);
+        });
     }
 
     private void refreshDirtyCount() {

@@ -294,3 +294,10 @@
     -fx-font-style: italic;
     -fx-font-size: 11px;
 }
+
+/* --- Remote update notice (passive "origin has new commits", CLAUDE.md 4.3) --- */
+
+.remote-notice {
+    -fx-text-fill: -git-accent-hover;
+    -fx-font-weight: bold;
+}

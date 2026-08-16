@@ -21,6 +21,7 @@ import org.eclipse.jgit.api.ResetCommand.ResetType;
 import org.eclipse.jgit.api.RevertCommand;
 import org.eclipse.jgit.api.Status;
 import org.eclipse.jgit.api.errors.GitAPIException;
+import org.eclipse.jgit.lib.Constants;
 import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.PersonIdent;
 import org.eclipse.jgit.lib.ReflogEntry;
@@ -270,6 +271,45 @@ public final class CommandExecutor {
         } catch (IOException e) {
             throw new GitCommandException("Failed to read reflog", e);
         }
+    }
+
+    /**
+     * "Undo last command" (CLAUDE.md 4.3): a reflog-backed hard reset back to whatever HEAD
+     * pointed at just before the most recent reflog-recording operation (commit, checkout,
+     * merge, reset, rebase, cherry-pick, revert, ...) — not a custom undo stack, so it's the same
+     * safety net {@code git reflog} + {@code git reset} would give a real user.
+     *
+     * <p>A conflicting merge is special-cased: it never moves HEAD (no reflog entry is written
+     * for it), so reflog-walking would silently reach past it and undo whatever real commit came
+     * before — instead, undoing while a merge is pending just cancels that pending merge, same as
+     * {@link #abortMerge}. The reflog is itself git activity, so undoing twice in a row undoes the
+     * undo (moves back forward) rather than walking further into history — a known consequence of
+     * this being a reflog-backed reset rather than a dedicated undo stack.
+     *
+     * <p>Known limitation: if the last operation was a branch switch, this restores the content
+     * position but not which branch HEAD points at (a plain {@code reset} moves the current
+     * branch/commit, not the symbolic ref) — same limitation a raw {@code git reset --hard} has.
+     */
+    public GraphDiff undoLastCommand() {
+        return mutate(() -> {
+            Repository repository = model.getRepository();
+            List<ObjectId> mergeHeads = repository.readMergeHeads();
+            if (mergeHeads != null && !mergeHeads.isEmpty()) {
+                git().reset().setMode(ResetType.HARD).call();
+                repository.writeMergeHeads(null);
+                repository.writeMergeCommitMsg(null);
+                return;
+            }
+            List<ReflogEntry> entries = repository.getRefDatabase().getReflogReader(Constants.HEAD).getReverseEntries();
+            if (entries.isEmpty()) {
+                throw new GitCommandException("Nothing to undo yet — the reflog is empty.");
+            }
+            ObjectId previous = entries.get(0).getOldId();
+            if (previous == null || ObjectId.zeroId().equals(previous)) {
+                throw new GitCommandException("Nothing to undo — already at the first recorded state.");
+            }
+            git().reset().setMode(ResetType.HARD).setRef(previous.name()).call();
+        });
     }
 
     // ---- Arc 6: Remotes ----

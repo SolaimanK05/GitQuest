@@ -22,7 +22,8 @@ import com.gitquest.core.model.GraphDiff;
  * {@code rebase --squash <upstream> -m "message"},
  * {@code rebase --continue|--abort}, {@code reset [--soft|--mixed|--hard]
  * <ref>}, {@code revert <ref>}, {@code fetch}, {@code pull},
- * {@code push [--force]}. {@code status}, {@code reflog}, and
+ * {@code push [--force]}, {@code undo} (reflog-backed "undo last command").
+ * {@code status}, {@code reflog}, and
  * {@code refresh}/{@code log} don't produce a {@link GraphDiff} and are
  * special-cased by the caller before reaching this parser. Unrecognized
  * input throws {@link IllegalArgumentException} so the caller can log it as
@@ -107,13 +108,15 @@ final class TerminalCommandParser {
                 return executor.pull();
             case "push":
                 return executor.push(tokens.contains("--force") || tokens.contains("-f"));
+            case "undo":
+                return executor.undoLastCommand();
             default:
                 throw new IllegalArgumentException("Unknown command: " + verb
                         + ". Supported: add, commit -m \"...\", branch <name> [<startpoint>], checkout <name>, "
                         + "checkout -b <local> <startpoint>, merge <name> [--no-ff], merge --abort, delete <name>, "
                         + "amend -m \"...\", cherry-pick <ref>, rebase <upstream>, rebase --squash <upstream> -m \"...\", "
                         + "rebase --continue|--abort, reset [--soft|--mixed|--hard] <ref>, revert <ref>, "
-                        + "fetch, pull, push [--force], status, reflog, refresh");
+                        + "fetch, pull, push [--force], undo, status, reflog, refresh");
         }
     }
 

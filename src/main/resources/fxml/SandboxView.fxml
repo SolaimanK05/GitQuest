@@ -21,6 +21,7 @@
 <?import javafx.scene.control.TreeView?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.VBox?>
 
 <BorderPane xmlns="http://javafx.com/javafx"
@@ -135,6 +136,18 @@
                                 <Button fx:id="mergeButton" text="Merge" maxWidth="Infinity">
                                     <tooltip>
                                         <Tooltip text="git merge &lt;branch&gt; — merge the selected branch into the current branch."/>
+                                    </tooltip>
+                                </Button>
+                            </VBox>
+                        </TitledPane>
+                        <TitledPane text="Recovery" expanded="true">
+                            <VBox spacing="8">
+                                <padding>
+                                    <Insets top="8" right="8" bottom="8" left="8"/>
+                                </padding>
+                                <Button fx:id="undoLastCommandButton" text="Undo Last Command" maxWidth="Infinity">
+                                    <tooltip>
+                                        <Tooltip text="A reflog-backed reset back to just before the last command that moved HEAD (or, if a merge is pending, cancels it) — safe to experiment with, this is git's own safety net, not a custom undo stack."/>
                                     </tooltip>
                                 </Button>
                             </VBox>
@@ -288,13 +301,25 @@
     <!-- ================= BOTTOM: status bar + command log ================= -->
     <bottom>
         <VBox>
-            <HBox spacing="24" styleClass="status-bar">
+            <HBox spacing="24" styleClass="status-bar" alignment="CENTER_LEFT">
                 <padding>
                     <Insets top="8" right="16" bottom="8" left="16"/>
                 </padding>
                 <Label fx:id="branchLabel"/>
                 <Label fx:id="headLabel"/>
                 <Label fx:id="dirtyLabel"/>
+                <Region HBox.hgrow="ALWAYS"/>
+                <Label fx:id="remoteNoticeLabel" styleClass="remote-notice" visible="false" managed="false"/>
+                <Button fx:id="fetchNowButton" text="Fetch" visible="false" managed="false">
+                    <tooltip>
+                        <Tooltip text="git fetch — download the new commits so you can inspect them. Still won't touch your working branch; merge/pull that in yourself."/>
+                    </tooltip>
+                </Button>
+                <Button fx:id="checkRemoteButton" text="Check for updates">
+                    <tooltip>
+                        <Tooltip text="Cheaply check origin's branch tips right now (no download) — the same check that also runs automatically in the background."/>
+                    </tooltip>
+                </Button>
             </HBox>
             <ListView fx:id="commandLog" prefHeight="140" styleClass="command-log"/>
             <HBox fx:id="terminalInputBox" spacing="6" visible="true" managed="true">
