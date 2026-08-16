@@ -41,22 +41,30 @@ import javafx.scene.shape.Line;
  * connection and see exactly what's used — the tooltip/detail callback
  * carries both the class/interface names referenced and (best-effort,
  * see {@code JavaDependencyAnalyzer}) the specific method calls resolved
- * back to that file. Clicking empty canvas clears whichever is focused.
+ * back to that file. Every edge is actually two overlapping lines: a thin
+ * styled one purely for display, and a much wider fully-transparent one
+ * underneath that owns the click/hover handling — a 1-2px line is a
+ * frustratingly small target otherwise. Clicking empty canvas clears
+ * whichever is focused.
  */
 public final class CodeGraphView extends Pane {
 
-    private static final double REPULSION = 2400;
-    private static final double SPRING_LENGTH = 100;
+    private static final double REPULSION = 6500;
+    private static final double SPRING_LENGTH = 170;
     private static final double SPRING_STRENGTH = 0.02;
-    private static final double CENTERING_STRENGTH = 0.003;
-    private static final double CLUSTER_STRENGTH = 0.012;
+    private static final double CENTERING_STRENGTH = 0.002;
+    // Deliberately weak: this only nudges a folder's "center of mass" toward its anchor over time —
+    // strong enough to overpower it and repulsion can't win the fight to space same-folder siblings
+    // apart, which is what actually reads as "clustered" rather than just "colored the same".
+    private static final double CLUSTER_STRENGTH = 0.0035;
     private static final double DAMPING = 0.85;
     private static final double SETTLE_SPEED_THRESHOLD = 0.05;
     private static final int SETTLE_FRAME_COUNT = 30;
-    private static final double MIN_RADIUS = 8;
-    private static final double MAX_RADIUS = 22;
+    private static final double MIN_RADIUS = 6;
+    private static final double MAX_RADIUS = 32;
     private static final double MIN_EDGE_WIDTH = 1.4;
     private static final double MAX_EDGE_WIDTH = 4.5;
+    private static final double EDGE_HIT_WIDTH = 14;
     private static final Color EDGE_COLOR = Color.web("#5B6472");
     private static final Color FOCUS_STROKE = Color.web("#F05133");
 
@@ -64,7 +72,7 @@ public final class CodeGraphView extends Pane {
     private final Group nodesLayer = new Group();
     private final Group folderLabelsLayer = new Group();
     private final Map<String, CodeGraphNodeView> nodesByPath = new LinkedHashMap<>();
-    private final Map<DependencyEdge, Line> lineByEdge = new HashMap<>();
+    private final Map<DependencyEdge, EdgeLines> linesByEdge = new HashMap<>();
     private List<DependencyEdge> edges = List.of();
 
     private AnimationTimer timer;
@@ -75,6 +83,10 @@ public final class CodeGraphView extends Pane {
     private DependencyEdge focusedEdge;
     private Consumer<String> onNodeSelected = path -> { };
     private Consumer<DependencyEdge> onEdgeSelected = edge -> { };
+
+    /** The visible styled line plus an invisible, much-wider line underneath that owns hit-testing. */
+    private record EdgeLines(Line visual, Line hitArea) {
+    }
 
     public CodeGraphView() {
         getStyleClass().add("commit-graph");
@@ -103,7 +115,7 @@ public final class CodeGraphView extends Pane {
         setPrefSize(canvasWidth, canvasHeight);
 
         nodesByPath.clear();
-        lineByEdge.clear();
+        linesByEdge.clear();
         edgesLayer.getChildren().clear();
         nodesLayer.getChildren().clear();
         folderLabelsLayer.getChildren().clear();
@@ -116,6 +128,9 @@ public final class CodeGraphView extends Pane {
             degree.merge(edge.fromPath(), 1, Integer::sum);
             degree.merge(edge.toPath(), 1, Integer::sum);
         }
+        // Scaled relative to this graph's own busiest file, not a fixed formula — otherwise any
+        // file past ~7 connections already hit the radius cap and every "hub" looked the same size.
+        int maxDegree = degree.values().stream().mapToInt(Integer::intValue).max().orElse(0);
 
         Map<String, List<String>> pathsByFolder = new LinkedHashMap<>();
         for (String path : graph.filePaths()) {
@@ -126,7 +141,8 @@ public final class CodeGraphView extends Pane {
         Random random = new Random(1); // deterministic initial scatter — reproducible layouts between renders
         for (String path : graph.filePaths()) {
             String folder = folderOf(path);
-            double radius = Math.min(MIN_RADIUS + Math.sqrt(degree.getOrDefault(path, 0)) * 6, MAX_RADIUS);
+            double degreeRatio = maxDegree > 0 ? Math.sqrt(degree.getOrDefault(path, 0) / (double) maxDegree) : 0;
+            double radius = MIN_RADIUS + degreeRatio * (MAX_RADIUS - MIN_RADIUS);
             CodeGraphNodeView node = new CodeGraphNodeView(path, folder, radius, graph.filesWithParseErrors().contains(path));
             double[] anchor = anchorByFolder.get(folder);
             node.anchorX = anchor[0];
@@ -158,15 +174,21 @@ public final class CodeGraphView extends Pane {
             if (from == null || to == null) {
                 continue;
             }
-            Line line = new Line();
-            line.setStroke(EDGE_COLOR);
-            line.setStrokeWidth(edgeWidth(edge));
-            line.setOpacity(0.5);
-            line.setCursor(Cursor.HAND);
-            line.setOnMouseClicked(e -> selectEdge(edge));
-            Tooltip.install(line, new Tooltip(edge.fromPath() + " -> " + edge.toPath() + describeUsage(edge)));
-            lineByEdge.put(edge, line);
-            edgesLayer.getChildren().add(line);
+            Line visual = new Line();
+            visual.setStroke(EDGE_COLOR);
+            visual.setStrokeWidth(edgeWidth(edge));
+            visual.setOpacity(0.5);
+            visual.setMouseTransparent(true);
+
+            Line hitArea = new Line();
+            hitArea.setStroke(Color.TRANSPARENT);
+            hitArea.setStrokeWidth(EDGE_HIT_WIDTH);
+            hitArea.setCursor(Cursor.HAND);
+            hitArea.setOnMouseClicked(e -> selectEdge(edge));
+            Tooltip.install(hitArea, new Tooltip(edge.fromPath() + " -> " + edge.toPath() + describeUsage(edge)));
+
+            linesByEdge.put(edge, new EdgeLines(visual, hitArea));
+            edgesLayer.getChildren().addAll(visual, hitArea);
         }
 
         startPhysics();
@@ -224,10 +246,10 @@ public final class CodeGraphView extends Pane {
                 node.circle.setStrokeWidth(1.5);
             });
             for (DependencyEdge edge : edges) {
-                Line line = lineByEdge.get(edge);
-                if (line != null) {
-                    line.setOpacity(0.5);
-                    line.setStroke(EDGE_COLOR);
+                EdgeLines lines = linesByEdge.get(edge);
+                if (lines != null) {
+                    lines.visual().setOpacity(0.5);
+                    lines.visual().setStroke(EDGE_COLOR);
                 }
             }
             return;
@@ -263,13 +285,13 @@ public final class CodeGraphView extends Pane {
             node.circle.setStrokeWidth(isFocusedNode ? 3 : 1.5);
         }
         for (DependencyEdge edge : edges) {
-            Line line = lineByEdge.get(edge);
-            if (line == null) {
+            EdgeLines lines = linesByEdge.get(edge);
+            if (lines == null) {
                 continue;
             }
             boolean relevant = relevantEdges.contains(edge);
-            line.setOpacity(relevant ? 0.9 : 0.05);
-            line.setStroke(edge.equals(focusedEdge) ? FOCUS_STROKE : EDGE_COLOR);
+            lines.visual().setOpacity(relevant ? 0.9 : 0.05);
+            lines.visual().setStroke(edge.equals(focusedEdge) ? FOCUS_STROKE : EDGE_COLOR);
         }
     }
 
@@ -351,16 +373,20 @@ public final class CodeGraphView extends Pane {
         }
 
         for (DependencyEdge edge : edges) {
-            Line line = lineByEdge.get(edge);
+            EdgeLines lines = linesByEdge.get(edge);
             CodeGraphNodeView from = nodesByPath.get(edge.fromPath());
             CodeGraphNodeView to = nodesByPath.get(edge.toPath());
-            if (line == null || from == null || to == null) {
+            if (lines == null || from == null || to == null) {
                 continue;
             }
-            line.setStartX(from.x);
-            line.setStartY(from.y);
-            line.setEndX(to.x);
-            line.setEndY(to.y);
+            lines.visual().setStartX(from.x);
+            lines.visual().setStartY(from.y);
+            lines.visual().setEndX(to.x);
+            lines.visual().setEndY(to.y);
+            lines.hitArea().setStartX(from.x);
+            lines.hitArea().setStartY(from.y);
+            lines.hitArea().setEndX(to.x);
+            lines.hitArea().setEndY(to.y);
         }
 
         return nodes.isEmpty() || totalSpeed / nodes.size() < SETTLE_SPEED_THRESHOLD;
@@ -371,7 +397,7 @@ public final class CodeGraphView extends Pane {
         Map<String, double[]> anchors = new LinkedHashMap<>();
         List<String> ordered = new ArrayList<>(folders);
         int count = ordered.size();
-        double clusterRadius = Math.min(canvasWidth, canvasHeight) * 0.32;
+        double clusterRadius = Math.min(canvasWidth, canvasHeight) * 0.35;
         for (int i = 0; i < count; i++) {
             double angle = count <= 1 ? 0 : (2 * Math.PI * i) / count;
             double ax = canvasWidth / 2 + (count <= 1 ? 0 : clusterRadius * Math.cos(angle));

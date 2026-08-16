@@ -6,11 +6,25 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Map;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 
 class JavaDependencyAnalyzerTest {
+
+    @Test
+    void analyzeSourcesWorksDirectlyFromInMemoryText() {
+        // This is the code path the Code Graph's time-travel scrubber uses (historical file
+        // content read from git blobs, never touching disk) — must behave the same as the
+        // disk-based analyze(Path) that the rest of this test class exercises.
+        JavaDependencyGraph graph = JavaDependencyAnalyzer.analyzeSources(Map.of(
+                "A.java", "class A { B field; }",
+                "B.java", "class B { }"));
+
+        assertTrue(hasEdge(graph, "A.java", "B.java"));
+        assertTrue(graph.filePaths().containsAll(java.util.Set.of("A.java", "B.java")));
+    }
 
     @Test
     void draws_an_edge_when_one_file_references_a_type_declared_in_another() throws IOException {

@@ -25,9 +25,9 @@ import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
 
 /**
- * Builds a {@link JavaDependencyGraph} by parsing every {@code .java} file
- * under a root with JavaParser — no classpath/symbol resolution configured,
- * per CLAUDE.md 4.3 Tier 1. Two passes: first index each file's declared
+ * Builds a {@link JavaDependencyGraph} by parsing every {@code .java} file's
+ * source with JavaParser — no classpath/symbol resolution configured, per
+ * CLAUDE.md 4.3 Tier 1. Two passes: first index each file's declared
  * class/interface/enum/record names, then scan every file's type
  * references (imports, extends/implements, field/param/return types,
  * {@code new X()}, generic args — JavaParser represents essentially all of
@@ -44,6 +44,12 @@ import com.github.javaparser.ast.type.ClassOrInterfaceType;
  * {@code this}/inherited members, and anything needing real type inference
  * are accepted gaps here, same spirit as the type-reference pass.
  *
+ * <p>The actual analysis ({@link #analyzeSources}) works from an in-memory
+ * {@code path -> source text} map rather than reading disk directly, so it
+ * can be fed either the live working directory ({@link #analyze(Path)}) or
+ * a historical commit's blobs (read via {@code HistoricalJavaSourceReader},
+ * no checkout) for the Code Graph's time-travel scrubber.
+ *
  * <p>Overloaded simple names across files (ambiguous — skipped rather than
  * guessed), and anything needing real symbol resolution (polymorphism,
  * reflection, external library internals), are known, accepted gaps: this
@@ -58,21 +64,43 @@ public final class JavaDependencyAnalyzer {
     private JavaDependencyAnalyzer() {
     }
 
+    /** Reads every {@code .java} file under {@code root} from disk, then delegates to {@link #analyzeSources}. */
     public static JavaDependencyGraph analyze(Path root) throws IOException {
         List<Path> javaFiles = findJavaFiles(root);
+        Map<String, String> sourceByPath = new LinkedHashMap<>();
+        Set<String> unreadable = new LinkedHashSet<>();
+        for (Path file : javaFiles) {
+            String relative = relativize(root, file);
+            try {
+                sourceByPath.put(relative, Files.readString(file));
+            } catch (IOException e) {
+                unreadable.add(relative); // e.g. non-UTF-8 content — treat as a parse error, not a hard failure
+            }
+        }
+        JavaDependencyGraph graph = analyzeSources(sourceByPath);
+        if (unreadable.isEmpty()) {
+            return graph;
+        }
+        Set<String> filePaths = new LinkedHashSet<>(graph.filePaths());
+        filePaths.addAll(unreadable);
+        Set<String> parseErrors = new LinkedHashSet<>(graph.filesWithParseErrors());
+        parseErrors.addAll(unreadable);
+        return new JavaDependencyGraph(filePaths, graph.edges(), parseErrors);
+    }
+
+    /** The actual analysis, independent of where the source text came from. See the class doc. */
+    public static JavaDependencyGraph analyzeSources(Map<String, String> sourceByPath) {
         JavaParser parser = new JavaParser(CONFIG);
 
-        Map<Path, CompilationUnit> parsedByFile = new LinkedHashMap<>();
-        Set<String> filePaths = new LinkedHashSet<>();
+        Map<String, CompilationUnit> parsedByFile = new LinkedHashMap<>();
         Set<String> parseErrors = new LinkedHashSet<>();
         // simple type name -> every file that declares a type with that name (ambiguous if more than one)
         Map<String, List<String>> declaredBy = new HashMap<>();
 
-        for (Path file : javaFiles) {
-            String relative = relativize(root, file);
-            filePaths.add(relative);
+        for (Map.Entry<String, String> entry : sourceByPath.entrySet()) {
+            String relative = entry.getKey();
             try {
-                ParseResult<CompilationUnit> result = parser.parse(file);
+                ParseResult<CompilationUnit> result = parser.parse(entry.getValue());
                 // JavaParser does lenient/partial parsing: even a malformed file can come back
                 // with a non-empty best-effort AST, so isSuccessful() (not just getResult()'s
                 // presence) is what actually marks a real parse failure.
@@ -81,7 +109,7 @@ public final class JavaDependencyAnalyzer {
                     continue;
                 }
                 CompilationUnit cu = result.getResult().get();
-                parsedByFile.put(file, cu);
+                parsedByFile.put(relative, cu);
                 for (TypeDeclaration<?> type : cu.findAll(TypeDeclaration.class)) {
                     declaredBy.computeIfAbsent(type.getNameAsString(), unused -> new ArrayList<>()).add(relative);
                 }
@@ -91,8 +119,8 @@ public final class JavaDependencyAnalyzer {
         }
 
         Map<String, Map<String, EdgeAccumulator>> edgesByFile = new LinkedHashMap<>();
-        for (Map.Entry<Path, CompilationUnit> entry : parsedByFile.entrySet()) {
-            String fromPath = relativize(root, entry.getKey());
+        for (Map.Entry<String, CompilationUnit> entry : parsedByFile.entrySet()) {
+            String fromPath = entry.getKey();
             CompilationUnit cu = entry.getValue();
 
             for (String typeName : referencedTypeNames(cu)) {
@@ -128,7 +156,7 @@ public final class JavaDependencyAnalyzer {
             }
         }
 
-        return new JavaDependencyGraph(filePaths, edges, parseErrors);
+        return new JavaDependencyGraph(Set.copyOf(sourceByPath.keySet()), edges, parseErrors);
     }
 
     /** Mutable per-(from,to) accumulator while scanning — converted to an immutable {@link DependencyEdge} at the end. */
