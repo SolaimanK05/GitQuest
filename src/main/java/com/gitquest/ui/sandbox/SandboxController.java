@@ -21,6 +21,9 @@ import com.gitquest.core.codebase.CodebaseAnalyzer;
 import com.gitquest.core.codebase.FileEntry;
 import com.gitquest.core.codebase.HistoricalTreeReader;
 import com.gitquest.core.codebase.WorkingTreeScanner;
+import com.gitquest.core.codegraph.DependencyEdge;
+import com.gitquest.core.codegraph.JavaDependencyAnalyzer;
+import com.gitquest.core.codegraph.JavaDependencyGraph;
 import com.gitquest.core.command.CommandExecutor;
 import com.gitquest.core.command.StatusSnapshot;
 import com.gitquest.core.model.BranchRef;
@@ -57,6 +60,7 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.TextInputDialog;
 import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeView;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.util.Duration;
 
@@ -145,6 +149,24 @@ public final class SandboxController {
     @FXML
     private Label fileDetailLastCommitLabel;
     @FXML
+    private Tab codeGraphTab;
+    @FXML
+    private Button analyzeCodeGraphButton;
+    @FXML
+    private Label codeGraphStatusLabel;
+    @FXML
+    private StackPane codeGraphHost;
+    @FXML
+    private CodeGraphView codeGraphView;
+    @FXML
+    private VBox codeGraphDetailPanel;
+    @FXML
+    private Label codeGraphSelectedPathLabel;
+    @FXML
+    private Label codeGraphDependsOnLabel;
+    @FXML
+    private Label codeGraphUsedByLabel;
+    @FXML
     private VBox campaignBanner;
     @FXML
     private Label levelTitleLabel;
@@ -178,6 +200,10 @@ public final class SandboxController {
     private int lastRenderedScrubberIndex = -1;
     private boolean codebaseAnalysisEverLoaded;
 
+    // ---- code relationship graph state (CLAUDE.md 4.3 Tier 1) ----
+    private JavaDependencyGraph currentCodeGraph;
+    private boolean codeGraphEverLoaded;
+
     @FXML
     private void initialize() {
         stageButton.setOnAction(e -> run("git add .", () -> commandExecutor.stageAll()));
@@ -198,9 +224,21 @@ public final class SandboxController {
         refreshAnalysisButton.setOnAction(e -> refreshCodebaseAnalysis());
         timeTravelSlider.valueProperty().addListener((obs, oldVal, newVal) -> onScrubberChanged(newVal.intValue()));
         treemapScrollPane.viewportBoundsProperty().addListener((obs, oldBounds, newBounds) -> renderTreemap());
+        analyzeCodeGraphButton.setOnAction(e -> refreshCodeGraph());
+        codeGraphView.setOnNodeSelected(this::showCodeGraphDetail);
         mainTabPane.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
             if (newTab == codebaseTab && !codebaseAnalysisEverLoaded) {
                 refreshCodebaseAnalysis();
+            }
+            if (oldTab == codeGraphTab) {
+                codeGraphView.stopPhysics(); // pause the simulation while the tab isn't visible
+            }
+            if (newTab == codeGraphTab) {
+                if (!codeGraphEverLoaded) {
+                    refreshCodeGraph();
+                } else {
+                    codeGraphView.resumePhysics();
+                }
             }
         });
     }
@@ -459,6 +497,55 @@ public final class SandboxController {
             return String.format("%.1f KB", kb);
         }
         return String.format("%.1f MB", kb / 1024.0);
+    }
+
+    // ---- code relationship graph (CLAUDE.md 4.3 Tier 1) ----
+
+    private void refreshCodeGraph() {
+        codeGraphEverLoaded = true;
+        codeGraphDetailPanel.setVisible(false);
+        codeGraphDetailPanel.setManaged(false);
+        codeGraphStatusLabel.setText("Parsing .java files...");
+        commandService.submit(() -> JavaDependencyAnalyzer.analyze(repoRoot),
+                this::onCodeGraphLoaded,
+                error -> codeGraphStatusLabel.setText("✗ analysis failed: " + rootMessage(error)));
+    }
+
+    private void onCodeGraphLoaded(JavaDependencyGraph graph) {
+        currentCodeGraph = graph;
+        String status = graph.filePaths().size() + " file(s), " + graph.edges().size() + " connection(s)";
+        if (!graph.filesWithParseErrors().isEmpty()) {
+            status += " — " + graph.filesWithParseErrors().size() + " couldn't be fully parsed";
+        }
+        codeGraphStatusLabel.setText(status);
+
+        double width = codeGraphHost.getWidth() > 0 ? codeGraphHost.getWidth() : 700;
+        double height = codeGraphHost.getHeight() > 0 ? codeGraphHost.getHeight() : 500;
+        codeGraphView.render(graph, width, height);
+    }
+
+    private void showCodeGraphDetail(String path) {
+        if (path == null || currentCodeGraph == null) {
+            codeGraphDetailPanel.setVisible(false);
+            codeGraphDetailPanel.setManaged(false);
+            return;
+        }
+        codeGraphDetailPanel.setVisible(true);
+        codeGraphDetailPanel.setManaged(true);
+        codeGraphSelectedPathLabel.setText(path);
+
+        List<String> dependsOn = new ArrayList<>();
+        List<String> usedBy = new ArrayList<>();
+        for (DependencyEdge edge : currentCodeGraph.edges()) {
+            if (edge.fromPath().equals(path)) {
+                dependsOn.add(edge.toPath() + " (" + String.join(", ", edge.referencedTypeNames()) + ")");
+            }
+            if (edge.toPath().equals(path)) {
+                usedBy.add(edge.fromPath() + " (" + String.join(", ", edge.referencedTypeNames()) + ")");
+            }
+        }
+        codeGraphDependsOnLabel.setText("Depends on:\n" + (dependsOn.isEmpty() ? "(nothing in this codebase)" : String.join("\n", dependsOn)));
+        codeGraphUsedByLabel.setText("Used by:\n" + (usedBy.isEmpty() ? "(nothing in this codebase)" : String.join("\n", usedBy)));
     }
 
     // ---- sidebar / terminal chrome ----

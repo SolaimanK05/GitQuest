@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import com.gitquest.ui.sandbox.CodeGraphView?>
 <?import com.gitquest.ui.sandbox.CommitGraphView?>
 <?import com.gitquest.ui.sandbox.TreemapView?>
 <?import javafx.geometry.Insets?>
@@ -19,6 +20,7 @@
 <?import javafx.scene.control.TreeView?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
 
 <BorderPane xmlns="http://javafx.com/javafx"
@@ -189,6 +191,39 @@
                                 <Label fx:id="fileDetailPathLabel" wrapText="true" style="-fx-font-weight: bold;"/>
                                 <Label fx:id="fileDetailStatsLabel" wrapText="true" styleClass="sub-label"/>
                                 <Label fx:id="fileDetailLastCommitLabel" wrapText="true" styleClass="sub-label"/>
+                            </VBox>
+                        </right>
+                    </BorderPane>
+                </Tab>
+                <Tab fx:id="codeGraphTab" text="Code Graph">
+                    <BorderPane>
+                        <top>
+                            <HBox spacing="12" styleClass="status-bar" alignment="CENTER_LEFT">
+                                <padding>
+                                    <Insets top="8" right="16" bottom="8" left="16"/>
+                                </padding>
+                                <Button fx:id="analyzeCodeGraphButton" text="Analyze Java Files">
+                                    <tooltip>
+                                        <Tooltip text="Parses every .java file and draws a file-to-file edge wherever one references a class/interface declared in another. Java-only; no classpath configuration needed."/>
+                                    </tooltip>
+                                </Button>
+                                <Label fx:id="codeGraphStatusLabel" styleClass="sub-label"/>
+                            </HBox>
+                        </top>
+                        <center>
+                            <StackPane fx:id="codeGraphHost">
+                                <CodeGraphView fx:id="codeGraphView"/>
+                            </StackPane>
+                        </center>
+                        <right>
+                            <VBox fx:id="codeGraphDetailPanel" prefWidth="240" spacing="6" styleClass="sidebar" visible="false" managed="false">
+                                <padding>
+                                    <Insets top="12" right="12" bottom="12" left="12"/>
+                                </padding>
+                                <Label text="Selected File" styleClass="section-heading"/>
+                                <Label fx:id="codeGraphSelectedPathLabel" wrapText="true" style="-fx-font-weight: bold;"/>
+                                <Label fx:id="codeGraphDependsOnLabel" wrapText="true" styleClass="sub-label"/>
+                                <Label fx:id="codeGraphUsedByLabel" wrapText="true" styleClass="sub-label"/>
                             </VBox>
                         </right>
                     </BorderPane>
