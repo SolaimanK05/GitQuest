@@ -225,7 +225,8 @@ public final class SandboxController {
         timeTravelSlider.valueProperty().addListener((obs, oldVal, newVal) -> onScrubberChanged(newVal.intValue()));
         treemapScrollPane.viewportBoundsProperty().addListener((obs, oldBounds, newBounds) -> renderTreemap());
         analyzeCodeGraphButton.setOnAction(e -> refreshCodeGraph());
-        codeGraphView.setOnNodeSelected(this::showCodeGraphDetail);
+        codeGraphView.setOnNodeSelected(this::showCodeGraphFileDetail);
+        codeGraphView.setOnEdgeSelected(this::showCodeGraphEdgeDetail);
         mainTabPane.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
             if (newTab == codebaseTab && !codebaseAnalysisEverLoaded) {
                 refreshCodebaseAnalysis();
@@ -524,10 +525,9 @@ public final class SandboxController {
         codeGraphView.render(graph, width, height);
     }
 
-    private void showCodeGraphDetail(String path) {
+    private void showCodeGraphFileDetail(String path) {
         if (path == null || currentCodeGraph == null) {
-            codeGraphDetailPanel.setVisible(false);
-            codeGraphDetailPanel.setManaged(false);
+            hideCodeGraphDetailIfEmpty();
             return;
         }
         codeGraphDetailPanel.setVisible(true);
@@ -538,14 +538,40 @@ public final class SandboxController {
         List<String> usedBy = new ArrayList<>();
         for (DependencyEdge edge : currentCodeGraph.edges()) {
             if (edge.fromPath().equals(path)) {
-                dependsOn.add(edge.toPath() + " (" + String.join(", ", edge.referencedTypeNames()) + ")");
+                dependsOn.add(edge.toPath() + " (" + usageSummary(edge) + ")");
             }
             if (edge.toPath().equals(path)) {
-                usedBy.add(edge.fromPath() + " (" + String.join(", ", edge.referencedTypeNames()) + ")");
+                usedBy.add(edge.fromPath() + " (" + usageSummary(edge) + ")");
             }
         }
         codeGraphDependsOnLabel.setText("Depends on:\n" + (dependsOn.isEmpty() ? "(nothing in this codebase)" : String.join("\n", dependsOn)));
         codeGraphUsedByLabel.setText("Used by:\n" + (usedBy.isEmpty() ? "(nothing in this codebase)" : String.join("\n", usedBy)));
+    }
+
+    private void showCodeGraphEdgeDetail(DependencyEdge edge) {
+        if (edge == null) {
+            hideCodeGraphDetailIfEmpty();
+            return;
+        }
+        codeGraphDetailPanel.setVisible(true);
+        codeGraphDetailPanel.setManaged(true);
+        codeGraphSelectedPathLabel.setText(edge.fromPath() + "  →  " + edge.toPath());
+        codeGraphDependsOnLabel.setText("Type(s) referenced:\n"
+                + (edge.referencedTypeNames().isEmpty() ? "(none — only a method call)" : String.join(", ", edge.referencedTypeNames())));
+        codeGraphUsedByLabel.setText("Method call(s) detected:\n"
+                + (edge.referencedMethodNames().isEmpty() ? "(none detected — best-effort only)" : String.join(", ", edge.referencedMethodNames())));
+    }
+
+    /** A click on empty canvas fires both selection callbacks with null — only hide once both agree nothing is focused. */
+    private void hideCodeGraphDetailIfEmpty() {
+        codeGraphDetailPanel.setVisible(false);
+        codeGraphDetailPanel.setManaged(false);
+    }
+
+    private static String usageSummary(DependencyEdge edge) {
+        List<String> parts = new ArrayList<>(edge.referencedTypeNames());
+        edge.referencedMethodNames().forEach(m -> parts.add(m));
+        return String.join(", ", parts);
     }
 
     // ---- sidebar / terminal chrome ----

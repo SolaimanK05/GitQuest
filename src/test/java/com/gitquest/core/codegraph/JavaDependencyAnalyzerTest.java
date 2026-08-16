@@ -70,6 +70,60 @@ class JavaDependencyAnalyzerTest {
     }
 
     @Test
+    void detectsMethodCallOnAFieldTypedSymbol() throws IOException {
+        Path root = Files.createTempDirectory("jda-test");
+        write(root, "A.java", "class A { B b = new B(); void run() { b.doWork(); } }");
+        write(root, "B.java", "class B { void doWork() { } }");
+
+        JavaDependencyGraph graph = JavaDependencyAnalyzer.analyze(root);
+
+        assertTrue(edgeBetween(graph, "A.java", "B.java").referencedMethodNames().contains("doWork()"));
+    }
+
+    @Test
+    void detectsMethodCallOnALocalVariable() throws IOException {
+        Path root = Files.createTempDirectory("jda-test");
+        write(root, "A.java", "class A { void run() { B b = new B(); b.doWork(); } }");
+        write(root, "B.java", "class B { void doWork() { } }");
+
+        JavaDependencyGraph graph = JavaDependencyAnalyzer.analyze(root);
+
+        assertTrue(edgeBetween(graph, "A.java", "B.java").referencedMethodNames().contains("doWork()"));
+    }
+
+    @Test
+    void detectsMethodCallOnAParameter() throws IOException {
+        Path root = Files.createTempDirectory("jda-test");
+        write(root, "A.java", "class A { void run(B b) { b.doWork(); } }");
+        write(root, "B.java", "class B { void doWork() { } }");
+
+        JavaDependencyGraph graph = JavaDependencyAnalyzer.analyze(root);
+
+        assertTrue(edgeBetween(graph, "A.java", "B.java").referencedMethodNames().contains("doWork()"));
+    }
+
+    @Test
+    void detectsStaticMethodCallOnAClassName() throws IOException {
+        Path root = Files.createTempDirectory("jda-test");
+        write(root, "A.java", "class A { void run() { Util.helper(); } }");
+        write(root, "Util.java", "class Util { static void helper() { } }");
+
+        JavaDependencyGraph graph = JavaDependencyAnalyzer.analyze(root);
+
+        assertTrue(edgeBetween(graph, "A.java", "Util.java").referencedMethodNames().contains("helper()"));
+    }
+
+    @Test
+    void unqualifiedCallProducesNoMethodEdge() throws IOException {
+        Path root = Files.createTempDirectory("jda-test");
+        write(root, "A.java", "class A { void run() { helper(); } void helper() { } }");
+
+        JavaDependencyGraph graph = JavaDependencyAnalyzer.analyze(root);
+
+        assertTrue(graph.edges().isEmpty(), "a call with no scope (this/inherited) shouldn't be heuristically resolved");
+    }
+
+    @Test
     void unparseableFileIsRecordedNotThrown() throws IOException {
         Path root = Files.createTempDirectory("jda-test");
         write(root, "Broken.java", "class Broken { this is not valid java!!! ");
