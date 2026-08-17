@@ -1,4 +1,4 @@
-package com.gitquest.ui.entry;
+package com.gitquest.core.service;
 
 import java.nio.file.Files;
 import java.nio.file.Path;

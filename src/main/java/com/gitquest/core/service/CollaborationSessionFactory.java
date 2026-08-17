@@ -43,12 +43,19 @@ public final class CollaborationSessionFactory {
             seed.commit().setMessage("Shared base").setAuthor(SEED_AUTHOR).call();
             seed.push().setRemote(bareOrigin.toUri().toString()).add("main").call();
         }
+        // Nothing needs the seed clone once it's pushed into the bare origin — dispose of it right away
+        // rather than leaving it to linger for the rest of the session.
+        TempDirCleanup.deleteRecursively(seedDir);
 
         String originUri = bareOrigin.toUri().toString();
         Path cloneADir = Files.createTempDirectory("gitquest-collab-a-");
         Path cloneBDir = Files.createTempDirectory("gitquest-collab-b-");
         RepoStateModel cloneA = RepositorySessionFactory.clone(originUri, cloneADir, NullProgressMonitor.INSTANCE);
         RepoStateModel cloneB = RepositorySessionFactory.clone(originUri, cloneBDir, NullProgressMonitor.INSTANCE);
+        // Each clone's own working dir is its own to dispose of; the shared bareOrigin is torn down
+        // separately by CollabController once, since both clones leave together.
+        cloneA.markDisposable(java.util.List.of(cloneADir), false);
+        cloneB.markDisposable(java.util.List.of(cloneBDir), false);
 
         return new CollaborationPair(cloneA, cloneB, bareOrigin);
     }
