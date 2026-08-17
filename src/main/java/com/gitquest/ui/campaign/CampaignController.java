@@ -84,6 +84,7 @@ public final class CampaignController {
             RepoStateModel model = RepositorySessionFactory.init(tempDir);
             CommandExecutor executor = new CommandExecutor(model);
             level.setup().build(model, executor);
+            model.markDisposable(java.util.List.of(tempDir), false);
             return model;
         }, model -> navigator.showSandboxForLevel(model, level),
                 error -> ErrorDialogs.show("Couldn't start level", error));

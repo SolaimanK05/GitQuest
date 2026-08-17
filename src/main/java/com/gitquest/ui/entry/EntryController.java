@@ -1,8 +1,8 @@
 package com.gitquest.ui.entry;
 
 import java.io.File;
+import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Optional;
 
 import org.eclipse.jgit.lib.NullProgressMonitor;
 
@@ -16,7 +16,6 @@ import javafx.fxml.FXML;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
-import javafx.scene.control.ButtonType;
 import javafx.scene.control.TextField;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.Window;
@@ -27,6 +26,13 @@ import javafx.stage.Window;
  * calling {@link #initialize()} — {@link #setNavigator(Navigator)} is
  * called separately by {@code SceneRouter} right after load, since the
  * navigator isn't available at FXML-instantiation time.
+ *
+ * <p>Every path here ends up in an app-managed temp sandbox directory (see
+ * {@link RepositorySessionFactory}) — never the real folder a user picked, and never a real
+ * network remote once the (one, unavoidable-for-Clone) initial network operation is done. "Open"
+ * no longer needs to ask whether to initialize a non-git folder instead: since nothing here ever
+ * writes back into the real folder either way, {@code openAsSandbox} just transparently does the
+ * right thing for both cases.
  */
 public final class EntryController {
 
@@ -59,52 +65,40 @@ public final class EntryController {
             new Alert(AlertType.WARNING, "Enter a repository URL to clone.").showAndWait();
             return;
         }
-        Path destination = chooseDirectory("Choose destination folder for clone");
-        if (destination == null) {
-            return;
-        }
         setBusy(true);
         commandService.submit(
-                () -> RepositorySessionFactory.clone(url, destination, NullProgressMonitor.INSTANCE),
+                () -> {
+                    Path destination = Files.createTempDirectory("gitquest-sandbox-clone-");
+                    return RepositorySessionFactory.cloneAsSandbox(url, destination, NullProgressMonitor.INSTANCE);
+                },
                 this::onSessionReady,
                 this::onSessionFailed);
     }
 
     private void handleOpen() {
-        Path folder = chooseDirectory("Choose a folder to open");
+        Path folder = chooseDirectory("Choose a folder to explore in the sandbox");
         if (folder == null) {
             return;
         }
-        if (GitDirectoryValidator.isGitRepository(folder)) {
-            setBusy(true);
-            commandService.submit(
-                    () -> RepositorySessionFactory.open(folder),
-                    this::onSessionReady,
-                    this::onSessionFailed);
-            return;
-        }
-        Alert confirm = new Alert(AlertType.CONFIRMATION,
-                folder + " is not a Git repository yet. Initialize it instead?",
-                ButtonType.YES, ButtonType.NO);
-        confirm.setHeaderText("Not a Git repository");
-        Optional<ButtonType> choice = confirm.showAndWait();
-        if (choice.isPresent() && choice.get() == ButtonType.YES) {
-            initialize(folder);
-        }
+        setBusy(true);
+        commandService.submit(
+                () -> {
+                    Path sandboxDir = Files.createTempDirectory("gitquest-sandbox-open-");
+                    return RepositorySessionFactory.openAsSandbox(folder, sandboxDir);
+                },
+                this::onSessionReady,
+                this::onSessionFailed);
     }
 
     private void handleInitialize() {
-        Path folder = chooseDirectory("Choose a folder to initialize");
-        if (folder == null) {
-            return;
-        }
-        initialize(folder);
-    }
-
-    private void initialize(Path folder) {
         setBusy(true);
         commandService.submit(
-                () -> RepositorySessionFactory.init(folder),
+                () -> {
+                    Path sandboxDir = Files.createTempDirectory("gitquest-sandbox-init-");
+                    RepoStateModel model = RepositorySessionFactory.init(sandboxDir);
+                    model.markDisposable(java.util.List.of(sandboxDir), true);
+                    return model;
+                },
                 this::onSessionReady,
                 this::onSessionFailed);
     }
@@ -116,7 +110,7 @@ public final class EntryController {
 
     private void onSessionFailed(Throwable error) {
         setBusy(false);
-        ErrorDialogs.show("Couldn't open repository", error);
+        ErrorDialogs.show("Couldn't start sandbox session", error);
     }
 
     private void setBusy(boolean busy) {

@@ -1,5 +1,6 @@
 package com.gitquest.ui.sandbox;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -38,7 +39,9 @@ import com.gitquest.core.model.GraphDiff;
 import com.gitquest.core.model.RepoSnapshot;
 import com.gitquest.core.model.RepoStateModel;
 import com.gitquest.core.service.CommandService;
+import com.gitquest.core.service.FileTreeCopy;
 import com.gitquest.core.service.RemoteRefPoller;
+import com.gitquest.core.service.TempDirCleanup;
 import com.gitquest.core.service.WorkingTreeWatcher;
 import com.gitquest.persistence.CampaignProgressStore;
 import com.gitquest.ui.common.ErrorDialogs;
@@ -68,6 +71,8 @@ import javafx.scene.control.TextInputDialog;
 import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeView;
 import javafx.scene.layout.VBox;
+import javafx.stage.DirectoryChooser;
+import javafx.stage.Window;
 import javafx.util.Duration;
 
 /**
@@ -94,6 +99,8 @@ public final class SandboxController {
     private Button collapseSidebarButton;
     @FXML
     private Button homeButton;
+    @FXML
+    private Button openSandboxFolderButton;
     @FXML
     private VBox sidebarContent;
     @FXML
@@ -257,7 +264,8 @@ public final class SandboxController {
         undoLastCommandButton.setOnAction(e -> handleUndoLastCommand());
 
         collapseSidebarButton.setOnAction(e -> toggleSidebar());
-        homeButton.setOnAction(e -> navigator.showHome());
+        homeButton.setOnAction(e -> leaveSandbox(navigator::showHome));
+        openSandboxFolderButton.setOnAction(e -> openSandboxFolder());
         terminalInputField.setOnAction(e -> handleTerminalCommand());
 
         treemapOverlayChoice.getItems().setAll("Size", "Churn", "Recency");
@@ -310,6 +318,12 @@ public final class SandboxController {
      */
     public void setNavigator(Navigator navigator) {
         this.navigator = navigator;
+    }
+
+    /** Used by the two-clone Collaboration Demo: each embedded session's own Home button would only clean up its own clone, not its sibling or their shared local origin — CollabController's single top-level "Home" button owns that instead. */
+    public void hideHomeButton() {
+        homeButton.setVisible(false);
+        homeButton.setManaged(false);
     }
 
     /** Finishes wiring once the repo session is known — see class javadoc. */
@@ -375,7 +389,7 @@ public final class SandboxController {
         objectiveLabel.setText(level.objective());
         whyItMattersLabel.setText("Why it matters: " + level.whyItMatters());
         hintButton.setOnAction(e -> handleHint());
-        backToSkillTreeButton.setOnAction(e -> navigator.showCampaign());
+        backToSkillTreeButton.setOnAction(e -> leaveSandbox(navigator::showCampaign));
 
         // Campaign levels are terminal-only — no button palette. Typing the
         // real commands is the point of a *guided* campaign.
@@ -775,6 +789,115 @@ public final class SandboxController {
     }
 
     // ---- sidebar / terminal chrome ----
+
+    /** Opens this sandbox session's actual folder in the OS file explorer — the "no built-in editor" flow needs the user to know where that is, since it's an app-managed temp copy, not wherever they originally pointed at (CLAUDE.md 4.3). */
+    private void openSandboxFolder() {
+        try {
+            java.awt.Desktop.getDesktop().open(repoRoot.toFile());
+        } catch (Exception e) {
+            ErrorDialogs.show("Couldn't open the sandbox folder", e);
+        }
+    }
+
+    private static final ButtonType SAVE_BUTTON = new ButtonType("Save As...");
+    private static final ButtonType DISCARD_BUTTON = new ButtonType("Discard");
+
+    /**
+     * Every session backed by disposable temp directories (CLAUDE.md's true-sandbox guarantee —
+     * see {@code RepositorySessionFactory}) gets torn down on the way out. Free-play sessions
+     * ({@link RepoStateModel#offersSaveOnDiscard()}) get asked first — Save As copies this
+     * session's actual files (commits and all) somewhere permanent before deleting the temp
+     * original; Discard just deletes it; Cancel stays put. Campaign levels and Collaboration Demo
+     * clones aren't offered a save (nothing there is meant to be kept as a standalone project) —
+     * their temp directories are just silently cleaned up.
+     */
+    private void leaveSandbox(Runnable navigateAway) {
+        List<Path> disposablePaths = model.disposablePaths();
+        if (disposablePaths.isEmpty()) {
+            navigateAway.run();
+            return;
+        }
+        if (!model.offersSaveOnDiscard()) {
+            commandService.submit(() -> {
+                        model.close(); // release JGit's file handles first -- Windows won't delete an open file
+                        TempDirCleanup.deleteAll(disposablePaths);
+                        return null;
+                    },
+                    ignored -> navigateAway.run(),
+                    error -> navigateAway.run()); // best-effort cleanup; still leave either way
+            return;
+        }
+
+        Alert prompt = new Alert(AlertType.CONFIRMATION,
+                "Keep this sandbox's commits and files permanently, or discard them?",
+                SAVE_BUTTON, DISCARD_BUTTON, ButtonType.CANCEL);
+        prompt.setHeaderText("Save this sandbox before leaving?");
+        Optional<ButtonType> choice = prompt.showAndWait();
+        if (choice.isEmpty() || choice.get() == ButtonType.CANCEL) {
+            return;
+        }
+        if (choice.get() == DISCARD_BUTTON) {
+            commandService.submit(() -> {
+                        model.close(); // release JGit's file handles first -- Windows won't delete an open file
+                        TempDirCleanup.deleteAll(disposablePaths);
+                        return null;
+                    },
+                    ignored -> navigateAway.run(),
+                    error -> navigateAway.run());
+            return;
+        }
+
+        Path destination = chooseSaveDestination();
+        if (destination == null) {
+            return; // folder picker cancelled, or destination rejected -- stay put
+        }
+        commandService.submit(() -> {
+                    // Copying works fine with the repository still open (Windows only blocks
+                    // deletion of an open file, not reading it) -- close it only once we're done
+                    // reading from it, right before deleting the temp original.
+                    FileTreeCopy.copyRecursively(repoRoot, destination);
+                    // The copy still has "origin" pointing at a local mirror that's about to be
+                    // deleted along with the rest of the temp sandbox -- strip it so the saved
+                    // copy doesn't carry a dangling remote.
+                    try (var savedGit = org.eclipse.jgit.api.Git.open(destination.toFile())) {
+                        if (savedGit.getRepository().getConfig().getString("remote", "origin", "url") != null) {
+                            savedGit.remoteRemove().setRemoteName("origin").call();
+                        }
+                    }
+                    model.close();
+                    TempDirCleanup.deleteAll(disposablePaths);
+                    return null;
+                },
+                ignored -> navigateAway.run(),
+                // Save failed -- don't delete the temp original, and don't navigate away, so nothing is lost.
+                error -> ErrorDialogs.show("Couldn't save sandbox", error));
+    }
+
+    /** Null if the user cancelled the picker, or declined to save into a non-empty folder. */
+    private Path chooseSaveDestination() {
+        DirectoryChooser chooser = new DirectoryChooser();
+        chooser.setTitle("Choose where to save this sandbox");
+        Window window = homeButton.getScene() != null ? homeButton.getScene().getWindow() : null;
+        File selected = chooser.showDialog(window);
+        if (selected == null) {
+            return null;
+        }
+        Path destination = selected.toPath();
+        try (var listing = Files.list(destination)) {
+            if (listing.findAny().isPresent()) {
+                Alert warn = new Alert(AlertType.CONFIRMATION,
+                        destination + " isn't empty. Save into it anyway?", ButtonType.YES, ButtonType.NO);
+                Optional<ButtonType> choice = warn.showAndWait();
+                if (choice.isEmpty() || choice.get() != ButtonType.YES) {
+                    return null;
+                }
+            }
+        } catch (IOException e) {
+            ErrorDialogs.show("Couldn't check destination folder", e);
+            return null;
+        }
+        return destination;
+    }
 
     private void toggleSidebar() {
         boolean expanding = sidebarCollapsed;

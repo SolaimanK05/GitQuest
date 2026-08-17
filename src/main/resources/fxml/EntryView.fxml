@@ -23,7 +23,7 @@
                 <!-- Clone -->
                 <VBox spacing="6">
                     <Label text="Clone" styleClass="section-heading"/>
-                    <Label text="Clone a remote repository to a local folder." wrapText="true" styleClass="sub-label"/>
+                    <Label text="Clone a remote repository into an isolated sandbox copy. Push/fetch/pull afterward never leave your machine — only the initial clone touches the real remote." wrapText="true" styleClass="sub-label"/>
                     <HBox alignment="CENTER_LEFT" spacing="8">
                         <TextField fx:id="cloneUrlField" promptText="https://github.com/example/repo.git" prefWidth="320"/>
                         <Button fx:id="cloneButton" text="Clone..." styleClass="accent"/>
@@ -33,7 +33,7 @@
                 <!-- Open -->
                 <VBox spacing="6">
                     <Label text="Open" styleClass="section-heading"/>
-                    <Label text="Open an existing local folder. If it's not a Git repository yet, you'll be offered the chance to initialize it." wrapText="true" styleClass="sub-label"/>
+                    <Label text="Explore a real local folder in a safe sandbox copy — whether or not it's a Git repository yet, nothing you do afterward ever touches the original." wrapText="true" styleClass="sub-label"/>
                     <HBox spacing="8">
                         <Button fx:id="openButton" text="Open..."/>
                     </HBox>
@@ -42,9 +42,9 @@
                 <!-- Initialize -->
                 <VBox spacing="6">
                     <Label text="Initialize" styleClass="section-heading"/>
-                    <Label text="Start a brand new repository from scratch." wrapText="true" styleClass="sub-label"/>
+                    <Label text="Start a brand new repository from scratch in an isolated sandbox." wrapText="true" styleClass="sub-label"/>
                     <HBox spacing="8">
-                        <Button fx:id="initializeButton" text="Initialize..."/>
+                        <Button fx:id="initializeButton" text="Initialize"/>
                     </HBox>
                 </VBox>
 

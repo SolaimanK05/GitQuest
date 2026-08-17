@@ -1,6 +1,7 @@
 package com.gitquest.core.model;
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -53,9 +54,42 @@ public final class RepoStateModel {
     private volatile String latestHeadRefName;
     private volatile ObjectId latestHeadCommitId;
 
+    private List<Path> disposablePaths = List.of();
+    private boolean offerSaveOnDiscard;
+
     public RepoStateModel(Repository repository) {
         this.repository = repository;
         this.git = new Git(repository);
+    }
+
+    /**
+     * Marks this session as backed by disposable temp directories (CLAUDE.md's true-sandbox
+     * guarantee — see {@code RepositorySessionFactory}) — {@code disposablePaths} get deleted once
+     * the session ends, offering to save a copy first only when {@code offerSaveOnDiscard} is true
+     * (free-play Sandbox sessions; not Campaign levels or the Collaboration Demo, which aren't
+     * meant to be kept as standalone projects).
+     */
+    public void markDisposable(List<Path> disposablePaths, boolean offerSaveOnDiscard) {
+        this.disposablePaths = List.copyOf(disposablePaths);
+        this.offerSaveOnDiscard = offerSaveOnDiscard;
+    }
+
+    public List<Path> disposablePaths() {
+        return disposablePaths;
+    }
+
+    public boolean offersSaveOnDiscard() {
+        return offerSaveOnDiscard;
+    }
+
+    /**
+     * Releases JGit's file handles on this session's repository (pack files, index, ref locks).
+     * Required before deleting {@link #disposablePaths()} — unlike POSIX, Windows refuses to
+     * delete a file that's still open elsewhere, so skipping this leaves the temp directory (or
+     * parts of it) stuck on disk even after a "successful" cleanup.
+     */
+    public void close() {
+        repository.close();
     }
 
     public Repository getRepository() {

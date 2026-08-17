@@ -64,6 +64,11 @@
                         <Tooltip text="Back to the Home screen"/>
                     </tooltip>
                 </Button>
+                <Button fx:id="openSandboxFolderButton" text="Open Folder">
+                    <tooltip>
+                        <Tooltip text="Open this sandbox's actual folder on disk — edit files here with your own editor. It's an isolated copy, not your original project."/>
+                    </tooltip>
+                </Button>
             </HBox>
 
             <VBox fx:id="sidebarContent" spacing="10" VBox.vgrow="ALWAYS">
