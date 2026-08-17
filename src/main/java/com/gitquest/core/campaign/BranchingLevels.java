@@ -29,8 +29,8 @@ final class BranchingLevels {
                         + "work at all.\n\n"
                         + "Create a new branch called feature and switch to it.",
                 "Branches are how Git lets many people (or many ideas) develop in parallel without stepping on each other.",
-                "Type: branch feature\nThen type: checkout feature",
-                "Type \"branch feature\" and press Enter, then type \"checkout feature\" and press Enter.",
+                List.of(),
+                List.of(),
                 (model, executor) -> {
                     Path workTree = model.getRepository().getWorkTree().toPath();
                     Files.writeString(workTree.resolve("README.md"), "A sample project.\n");
@@ -53,8 +53,8 @@ final class BranchingLevels {
                         + "You're on main. The feature branch has one commit main doesn't have yet. Merge "
                         + "feature into main.",
                 "Fast-forward is the default and simplest case — recognizing it is what makes the no-ff level right after this one make sense.",
-                "You're already on main. Type: merge feature",
-                "Type \"merge feature\" and press Enter.",
+                List.of(),
+                List.of(),
                 (model, executor) -> {
                     Path workTree = model.getRepository().getWorkTree().toPath();
                     Files.writeString(workTree.resolve("README.md"), "A sample project.\n");
@@ -85,8 +85,8 @@ final class BranchingLevels {
                         + "Same setup as before — main hasn't moved, feature has one commit ahead. This time, "
                         + "force a real merge commit.",
                 "This is exactly the merge-commit shape you already saw in the Sandbox tutorial — now you're making one on purpose.",
-                "Type: merge feature --no-ff",
-                "Type \"merge feature --no-ff\" and press Enter.",
+                List.of(),
+                List.of(),
                 (model, executor) -> {
                     Path workTree = model.getRepository().getWorkTree().toPath();
                     Files.writeString(workTree.resolve("README.md"), "A sample project.\n");
@@ -113,8 +113,8 @@ final class BranchingLevels {
                         + "doesn't have yet, so you can't accidentally throw away unmerged work this way.\n\n"
                         + "The feature branch below is already fully merged into main. Delete it.",
                 "Cleaning up merged branches is routine hygiene — real repositories accumulate dozens of stale ones if nobody bothers.",
-                "Type: delete feature",
-                "Type \"delete feature\" and press Enter.",
+                List.of(),
+                List.of(),
                 (model, executor) -> {
                     Path workTree = model.getRepository().getWorkTree().toPath();
                     Files.writeString(workTree.resolve("README.md"), "A sample project.\n");

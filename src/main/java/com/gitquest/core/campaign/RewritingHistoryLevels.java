@@ -32,9 +32,8 @@ final class RewritingHistoryLevels {
                         + "(\"Fx bug in login\"). Fix the file, then amend the commit so the message reads "
                         + "exactly \"Fix bug in login\".",
                 "This is the single most common history rewrite anyone does — cleaning up a commit before anyone else has seen it.",
-                "Edit notes.txt to fix the typo, then: add\nThen type: amend -m \"Fix bug in login\"",
-                "Fix the typo in notes.txt, type \"add\" and press Enter, then type "
-                        + "amend -m \"Fix bug in login\" and press Enter.",
+                List.of(),
+                List.of(),
                 (model, executor) -> {
                     Path workTree = model.getRepository().getWorkTree().toPath();
                     Path notes = workTree.resolve("notes.txt");
@@ -61,9 +60,8 @@ final class RewritingHistoryLevels {
                         + "other adds experiment.txt (an unrelated, half-finished idea). Cherry-pick only the "
                         + "commit that adds urgent-fix.txt onto main.",
                 "This is exactly how a hotfix buried in a feature branch gets pulled out and shipped without dragging the rest of that branch along.",
-                "Type: log\nFind the commit that adds urgent-fix.txt, note its hash, then type: cherry-pick <hash>",
-                "Type \"log\" and press Enter, find the short hash next to \"Add urgent fix\", then type "
-                        + "cherry-pick <that hash> and press Enter.",
+                List.of(),
+                List.of(),
                 (model, executor) -> {
                     Path workTree = model.getRepository().getWorkTree().toPath();
                     Files.writeString(workTree.resolve("README.md"), "A sample project.\n");
@@ -95,8 +93,8 @@ final class RewritingHistoryLevels {
                         + "You're on feature, which branched off main a while ago. main has since gained a "
                         + "new commit. Rebase feature onto main so your work sits cleanly on top of it.",
                 "Many teams prefer a rebased, linear history on feature branches — it reads top to bottom like a single story instead of a web of merges.",
-                "You're already on feature. Type: rebase main",
-                "Type \"rebase main\" and press Enter.",
+                List.of(),
+                List.of(),
                 (model, executor) -> {
                     Path workTree = model.getRepository().getWorkTree().toPath();
                     Files.writeString(workTree.resolve("base.txt"), "shared base\n");
@@ -130,8 +128,8 @@ final class RewritingHistoryLevels {
                         + "commits. Squash all three into one commit — rebased onto main's tip — with the "
                         + "message \"Add search feature\".",
                 "A reviewer (or future you, six months from now) would much rather see one commit titled \"Add search feature\" than three commits titled \"wip\".",
-                "You're already on feature. Type: rebase --squash main -m \"Add search feature\"",
-                "Type rebase --squash main -m \"Add search feature\" and press Enter.",
+                List.of(),
+                List.of(),
                 (model, executor) -> {
                     Path workTree = model.getRepository().getWorkTree().toPath();
                     Path search = workTree.resolve("search.txt");

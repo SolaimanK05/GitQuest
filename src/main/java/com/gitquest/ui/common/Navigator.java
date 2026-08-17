@@ -12,6 +12,9 @@ public interface Navigator {
 
     void showCampaign();
 
+    /** The pre-objective walkthrough (CLAUDE.md 4.2 follow-up) — skipped by the caller entirely when a level has no tutorial steps yet. */
+    void showTutorial(LevelDefinition level);
+
     void showSandbox(RepoStateModel model);
 
     void showSandboxForLevel(RepoStateModel model, LevelDefinition level);

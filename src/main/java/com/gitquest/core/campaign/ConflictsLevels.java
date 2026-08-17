@@ -30,8 +30,8 @@ final class ConflictsLevels {
                         + "main and feature have both edited the second line of notes.txt differently. Merge "
                         + "feature into main and watch it stop on a conflict instead of failing outright.",
                 "Every Git user hits conflicts eventually — recognizing one calmly, instead of panicking, is half the battle.",
-                "Type: merge feature",
-                "Type \"merge feature\" and press Enter. The merge will report a conflict — that's the expected outcome for this level.",
+                List.of(),
+                List.of(),
                 (model, executor) -> {
                     Path workTree = model.getRepository().getWorkTree().toPath();
                     Path notes = workTree.resolve("notes.txt");
@@ -65,10 +65,8 @@ final class ConflictsLevels {
                         + "This repository is already stopped mid-conflict on notes.txt. Open it in your editor, "
                         + "resolve the conflict markers, then stage and commit to finish the merge.",
                 "This exact edit-stage-commit sequence is how every merge conflict in the real world gets resolved, no matter the tool.",
-                "Edit notes.txt to remove the <<<<<<<, =======, >>>>>>> markers and pick the final wording. "
-                        + "Then type: add\nThen type: commit -m \"your message\"",
-                "Remove the conflict markers from notes.txt, keeping whichever wording you like for line two, "
-                        + "then type \"add\" and press Enter, then commit -m \"resolve conflict\".",
+                List.of(),
+                List.of(),
                 (model, executor) -> {
                     Path workTree = model.getRepository().getWorkTree().toPath();
                     Path notes = workTree.resolve("notes.txt");
@@ -102,8 +100,8 @@ final class ConflictsLevels {
                         + "This repository is stopped mid-conflict on notes.txt again. This time, back out of it "
                         + "entirely instead of resolving it.",
                 "Knowing you can always retreat safely makes it much less risky to just try a merge and see what happens.",
-                "Type: merge --abort",
-                "Type \"merge --abort\" and press Enter.",
+                List.of(),
+                List.of(),
                 (model, executor) -> {
                     Path workTree = model.getRepository().getWorkTree().toPath();
                     Path notes = workTree.resolve("notes.txt");

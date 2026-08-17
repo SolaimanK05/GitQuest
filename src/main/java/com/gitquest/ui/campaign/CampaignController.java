@@ -1,15 +1,10 @@
 package com.gitquest.ui.campaign;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
-
 import com.gitquest.core.campaign.CampaignCatalog;
 import com.gitquest.core.campaign.CampaignProgress;
 import com.gitquest.core.campaign.LevelDefinition;
-import com.gitquest.core.command.CommandExecutor;
-import com.gitquest.core.model.RepoStateModel;
+import com.gitquest.core.campaign.LevelSessionFactory;
 import com.gitquest.core.service.CommandService;
-import com.gitquest.core.service.RepositorySessionFactory;
 import com.gitquest.persistence.CampaignProgressStore;
 import com.gitquest.ui.common.ErrorDialogs;
 import com.gitquest.ui.common.Navigator;
@@ -39,6 +34,8 @@ public final class CampaignController {
     private Label detailDescriptionLabel;
     @FXML
     private Button playButton;
+    @FXML
+    private Button tutorialButton;
 
     private final CampaignProgressStore progressStore = new CampaignProgressStore();
     private final CommandService commandService = new CommandService();
@@ -63,6 +60,9 @@ public final class CampaignController {
         detailDescriptionLabel.setText("Click any node in the tree to see its objective and start it.");
         playButton.setDisable(true);
         playButton.setOnAction(null);
+        tutorialButton.setVisible(false);
+        tutorialButton.setManaged(false);
+        tutorialButton.setOnAction(null);
     }
 
     private void selectLevel(LevelDefinition level) {
@@ -76,17 +76,25 @@ public final class CampaignController {
         playButton.setText(completed ? "Play Again" : "Play");
         playButton.setDisable(false);
         playButton.setOnAction(e -> startLevel(level));
+
+        // Always jumps straight into the tutorial, regardless of whether it's already been
+        // watched — the one deliberate way to re-watch it (startLevel()'s Play button only
+        // shows it automatically the first time, per the user's ask).
+        boolean hasTutorial = !level.tutorial().isEmpty();
+        tutorialButton.setVisible(hasTutorial);
+        tutorialButton.setManaged(hasTutorial);
+        tutorialButton.setDisable(!hasTutorial);
+        tutorialButton.setOnAction(e -> navigator.showTutorial(level));
     }
 
+    /** A level's tutorial auto-shows on Play only the first time (CLAUDE.md 4.2 follow-up) — re-watching is the dedicated Tutorial button's job. */
     private void startLevel(LevelDefinition level) {
-        commandService.submit(() -> {
-            Path tempDir = Files.createTempDirectory("gitquest-level-" + level.id());
-            RepoStateModel model = RepositorySessionFactory.init(tempDir);
-            CommandExecutor executor = new CommandExecutor(model);
-            level.setup().build(model, executor);
-            model.markDisposable(java.util.List.of(tempDir), false);
-            return model;
-        }, model -> navigator.showSandboxForLevel(model, level),
+        if (!level.tutorial().isEmpty() && !progress.hasTutorialBeenWatched(level.id())) {
+            navigator.showTutorial(level);
+            return;
+        }
+        commandService.submit(() -> LevelSessionFactory.buildObjectiveSession(level),
+                model -> navigator.showSandboxForLevel(model, level),
                 error -> ErrorDialogs.show("Couldn't start level", error));
     }
 }

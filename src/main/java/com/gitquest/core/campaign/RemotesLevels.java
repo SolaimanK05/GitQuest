@@ -43,8 +43,8 @@ final class RemotesLevels {
                         + "A teammate has pushed a new commit to origin that you don't have yet. Fetch it, and "
                         + "notice your own main doesn't move.",
                 "Fetch-then-look-before-you-merge is what makes it safe to check in on a remote without risking your own work-in-progress.",
-                "Type: fetch",
-                "Type \"fetch\" and press Enter.",
+                List.of(),
+                List.of(),
                 (model, executor) -> setUpOrigin(model, executor, bareOrigin -> {
                     pushTeammateCommit(bareOrigin, "teammate.txt", "teammate's work\n", "Teammate's update");
                 }),
@@ -63,8 +63,8 @@ final class RemotesLevels {
                         + "Same situation as before — origin has a commit you don't. This time, pull it "
                         + "straight in.",
                 "Reaching for fetch versus pull is a judgment call teams make constantly — pull when you trust it, fetch-then-review when you don't.",
-                "Type: pull",
-                "Type \"pull\" and press Enter.",
+                List.of(),
+                List.of(),
                 (model, executor) -> setUpOrigin(model, executor, bareOrigin -> {
                     pushTeammateCommit(bareOrigin, "teammate.txt", "teammate's work\n", "Teammate's update");
                 }),
@@ -81,8 +81,8 @@ final class RemotesLevels {
                         + "fast-forward on the remote end: your commits just get appended to its history.\n\n"
                         + "You've committed new work locally that origin doesn't have yet. Push it.",
                 "This is the step that actually shares your work — everything before it only ever happened on your own machine.",
-                "Type: push",
-                "Type \"push\" and press Enter.",
+                List.of(),
+                List.of(),
                 (model, executor) -> setUpOrigin(model, executor, null, () -> {
                     Path workTree = model.getRepository().getWorkTree().toPath();
                     Files.writeString(workTree.resolve("my-work.txt"), "new local work\n");
@@ -104,8 +104,8 @@ final class RemotesLevels {
                         + "origin has a feature branch you don't have locally yet. Create a local feature "
                         + "branch that tracks it.",
                 "Every branch you've pulled or pushed so far in this arc relied on main already being a tracking branch from the very first level — now you're setting that relationship up yourself.",
-                "Type: checkout -b feature origin/feature",
-                "Type \"checkout -b feature origin/feature\" and press Enter.",
+                List.of(),
+                List.of(),
                 (model, executor) -> setUpOrigin(model, executor, bareOrigin -> {
                     Path otherClone = Files.createTempDirectory("gitquest-teammate-");
                     try (Git other = Git.cloneRepository().setURI(bareOrigin.toUri().toString()).setDirectory(otherClone.toFile()).call()) {
@@ -136,8 +136,8 @@ final class RemotesLevels {
                         + "has separately pushed their own commit to origin in the meantime. Try to push — see "
                         + "it get rejected — then force-push to make origin match your history.",
                 "This is the scenario every \"never force-push to a shared branch\" warning is about — you're about to feel exactly why.",
-                "Type: push  (watch it get rejected)\nThen type: push --force",
-                "Type \"push\" and press Enter — it will be rejected. Then type \"push --force\" and press Enter.",
+                List.of(),
+                List.of(),
                 (model, executor) -> setUpOrigin(model, executor, bareOrigin -> {
                     pushTeammateCommit(bareOrigin, "teammate.txt", "teammate's work\n", "Teammate's diverging work");
                     executor.amend("Shared base (rewritten locally)");

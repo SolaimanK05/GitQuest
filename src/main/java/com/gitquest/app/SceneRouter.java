@@ -11,6 +11,7 @@ import com.gitquest.ui.common.Navigator;
 import com.gitquest.ui.entry.EntryController;
 import com.gitquest.ui.home.HomeController;
 import com.gitquest.ui.sandbox.SandboxController;
+import com.gitquest.ui.tutorial.TutorialController;
 
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -58,6 +59,15 @@ public final class SceneRouter implements Navigator {
         Parent root = load(loader);
         CampaignController controller = loader.getController();
         controller.setNavigator(this);
+        setRoot(root);
+    }
+
+    @Override
+    public void showTutorial(LevelDefinition level) {
+        FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/TutorialView.fxml"));
+        Parent root = load(loader);
+        TutorialController controller = loader.getController();
+        controller.start(level, this);
         setRoot(root);
     }
 
