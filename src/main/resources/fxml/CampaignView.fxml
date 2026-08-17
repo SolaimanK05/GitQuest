@@ -46,6 +46,11 @@
                             <Label fx:id="detailTitleLabel" style="-fx-font-size: 18px; -fx-font-weight: bold;" wrapText="true"/>
                             <Label fx:id="detailDescriptionLabel" wrapText="true"/>
                             <Button fx:id="playButton" text="Play" styleClass="accent" maxWidth="Infinity" disable="true"/>
+                            <Button fx:id="tutorialButton" text="Tutorial" maxWidth="Infinity" disable="true" visible="false" managed="false">
+                                <tooltip>
+                                    <javafx.scene.control.Tooltip text="Watch (or re-watch) this level's animated walkthrough."/>
+                                </tooltip>
+                            </Button>
                         </VBox>
                     </content>
                 </ScrollPane>

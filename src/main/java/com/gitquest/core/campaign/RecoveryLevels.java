@@ -31,9 +31,8 @@ final class RecoveryLevels {
                         + "The last commit on main broke notes.txt. Use reflog to see where HEAD was before "
                         + "it, then hard-reset back to that point to throw the bad commit away entirely.",
                 "Knowing reset --hard exists — and that it's reflog-recoverable, not truly gone — is what makes it safe to experiment boldly.",
-                "Type: reflog\nFind the commit before the bad one, then type: reset --hard <hash>",
-                "Type \"reflog\" and press Enter, note the hash right after the good commit's entry, then "
-                        + "type reset --hard <that hash> and press Enter.",
+                List.of(),
+                List.of(),
                 (model, executor) -> {
                     Path workTree = model.getRepository().getWorkTree().toPath();
                     Path notes = workTree.resolve("notes.txt");
@@ -61,8 +60,8 @@ final class RecoveryLevels {
                         + "away, then commit the same (still-staged) change again with the message "
                         + "\"Add login validation\".",
                 "Nothing about the file changes here — only the commit boundary and its message do, which is exactly what --soft is for.",
-                "Type: reset --soft HEAD~1\nThen type: commit -m \"Add login validation\"",
-                "Type reset --soft HEAD~1 and press Enter, then commit -m \"Add login validation\" and press Enter.",
+                List.of(),
+                List.of(),
                 (model, executor) -> {
                     Path workTree = model.getRepository().getWorkTree().toPath();
                     Files.writeString(workTree.resolve("login.txt"), "validate credentials\n");
@@ -89,9 +88,8 @@ final class RecoveryLevels {
                         + "but it broke notes.txt. Revert it instead of resetting, to fix the file without "
                         + "erasing that commit from history.",
                 "This is the difference that matters most in Arc 6: reset/amend for your own unshared work, revert for anything already public.",
-                "Type: log\nFind the bad commit's hash, then type: revert <hash>",
-                "Type \"log\" and press Enter, note the hash next to the commit that broke notes.txt, then "
-                        + "type revert <that hash> and press Enter.",
+                List.of(),
+                List.of(),
                 (model, executor) -> {
                     Path workTree = model.getRepository().getWorkTree().toPath();
                     Path notes = workTree.resolve("notes.txt");
@@ -118,9 +116,8 @@ final class RecoveryLevels {
                         + "The prototype branch (with one commit of real work on it) has already been "
                         + "deleted. Use reflog to find that commit and recreate a branch pointing at it.",
                 "This is the single most reassuring thing to know about Git — an accidental branch delete almost never actually loses anything.",
-                "Type: reflog\nFind the commit made on prototype, note its hash, then type: branch recovered <hash>",
-                "Type \"reflog\" and press Enter, find the entry for \"commit: Prototype experiment\", note its "
-                        + "hash, then type branch recovered <that hash> and press Enter.",
+                List.of(),
+                List.of(),
                 (model, executor) -> {
                     Path workTree = model.getRepository().getWorkTree().toPath();
                     Files.writeString(workTree.resolve("README.md"), "A sample project.\n");

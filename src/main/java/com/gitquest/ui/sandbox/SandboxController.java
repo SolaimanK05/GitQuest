@@ -53,6 +53,7 @@ import javafx.animation.KeyValue;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
+import javafx.geometry.Pos;
 import javafx.scene.control.Accordion;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
@@ -68,9 +69,13 @@ import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextInputDialog;
+import javafx.scene.control.TitledPane;
 import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeView;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
+import javafx.scene.shape.Rectangle;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.Window;
 import javafx.util.Duration;
@@ -218,9 +223,11 @@ public final class SandboxController {
     @FXML
     private Label objectiveLabel;
     @FXML
-    private Label whyItMattersLabel;
+    private VBox campaignChecklistSection;
     @FXML
-    private Button hintButton;
+    private VBox checklistBox;
+    @FXML
+    private Label whyItMattersLabel;
     @FXML
     private Button backToSkillTreeButton;
 
@@ -235,9 +242,11 @@ public final class SandboxController {
     private RemoteRefPoller remotePoller;
     private Navigator navigator;
     private LevelDefinition activeLevel;
-    private int hintTierUsed;
+    private int hintsUsedThisAttempt;
     private boolean levelCompletedThisSession;
     private boolean conflictWarningShown;
+    private List<Rectangle> checklistIndicators = List.of();
+    private boolean[] checklistHintExpandedOnce = new boolean[0];
 
     // ---- codebase visualizer state (CLAUDE.md 4.3) ----
     private Map<String, CodebaseAnalyzer.FileStats> fileStatsByPath = Map.of();
@@ -388,8 +397,9 @@ public final class SandboxController {
         levelTitleLabel.setText(level.title());
         objectiveLabel.setText(level.objective());
         whyItMattersLabel.setText("Why it matters: " + level.whyItMatters());
-        hintButton.setOnAction(e -> handleHint());
         backToSkillTreeButton.setOnAction(e -> leaveSandbox(navigator::showCampaign));
+
+        buildChecklist(level);
 
         // Campaign levels are terminal-only — no button palette. Typing the
         // real commands is the point of a *guided* campaign.
@@ -398,22 +408,64 @@ public final class SandboxController {
         commandAccordion.setVisible(false);
         commandAccordion.setManaged(false);
         terminalInputField.requestFocus();
+        checkLevelGoal(); // covers a level that starts already partway toward its checklist
     }
 
-    private void handleHint() {
-        if (hintTierUsed == 0) {
-            hintTierUsed = 1;
-            new Alert(AlertType.INFORMATION, activeLevel.freeHint(), ButtonType.OK).showAndWait();
-            return;
+    /**
+     * A concrete objective breakdown, one row per {@link com.gitquest.core.campaign.ChecklistGoal}
+     * — a small indicator (filled once satisfied, auto-driven by {@link #checkLevelGoal()}, not
+     * user-toggleable) plus its own collapsed {@link TitledPane} hint underneath, instead of one
+     * hint dialog covering the whole level.
+     */
+    private void buildChecklist(LevelDefinition level) {
+        checklistBox.getChildren().clear();
+        hintsUsedThisAttempt = 0;
+        checklistHintExpandedOnce = new boolean[level.checklist().size()];
+
+        List<Rectangle> indicators = new ArrayList<>();
+        for (int i = 0; i < level.checklist().size(); i++) {
+            var item = level.checklist().get(i);
+            int itemIndex = i;
+
+            Rectangle indicator = new Rectangle(13, 13);
+            indicator.setArcWidth(4);
+            indicator.setArcHeight(4);
+            indicator.setFill(Color.TRANSPARENT);
+            indicator.setStroke(Color.web("#5B6472"));
+            indicator.setStrokeWidth(1.5);
+            indicators.add(indicator);
+
+            Label text = new Label(item.describeObjective());
+            text.setWrapText(true);
+            HBox row = new HBox(8, indicator, text);
+            row.setAlignment(Pos.CENTER_LEFT);
+
+            VBox itemBox = new VBox(4, row);
+            if (item.hint() != null && !item.hint().isBlank()) {
+                Label hintLabel = new Label(item.hint());
+                hintLabel.setWrapText(true);
+                hintLabel.getStyleClass().add("sub-label");
+                TitledPane hintPane = new TitledPane("Hint", hintLabel);
+                hintPane.setExpanded(false);
+                hintPane.getStyleClass().add("checklist-hint-pane");
+                hintPane.expandedProperty().addListener((obs, wasExpanded, isExpanded) -> {
+                    if (isExpanded && !checklistHintExpandedOnce[itemIndex]) {
+                        checklistHintExpandedOnce[itemIndex] = true;
+                        hintsUsedThisAttempt++;
+                    }
+                });
+                itemBox.getChildren().add(hintPane);
+            }
+            checklistBox.getChildren().add(itemBox);
         }
-        Alert confirm = new Alert(AlertType.CONFIRMATION,
-                "This will reveal the exact commands. Continue?", ButtonType.YES, ButtonType.NO);
-        confirm.setHeaderText("Show solution?");
-        Optional<ButtonType> choice = confirm.showAndWait();
-        if (choice.isPresent() && choice.get() == ButtonType.YES) {
-            hintTierUsed = 2;
-            new Alert(AlertType.INFORMATION, activeLevel.solutionHint(), ButtonType.OK).showAndWait();
-        }
+
+        checklistIndicators = indicators;
+        boolean hasChecklist = !checklistIndicators.isEmpty();
+        campaignChecklistSection.setVisible(hasChecklist);
+        campaignChecklistSection.setManaged(hasChecklist);
+    }
+
+    private record LevelProgress(boolean goalSatisfied, List<Boolean> checklistSatisfied) {
     }
 
     /** Checked off the FX thread — a goal may need real JGit/disk reads (see GitignoreExcludesGoal). */
@@ -422,9 +474,17 @@ public final class SandboxController {
             return;
         }
         LevelDefinition level = activeLevel;
-        commandService.submit(() -> level.goal().isSatisfied(model),
-                satisfied -> {
-                    if (satisfied) {
+        commandService.submit(() -> new LevelProgress(
+                        level.goal().isSatisfied(model),
+                        level.checklist().stream().map(item -> item.isSatisfied(model)).toList()),
+                progress -> {
+                    for (int i = 0; i < checklistIndicators.size() && i < progress.checklistSatisfied().size(); i++) {
+                        boolean satisfied = progress.checklistSatisfied().get(i);
+                        Rectangle indicator = checklistIndicators.get(i);
+                        indicator.setFill(satisfied ? Color.web("#F05133") : Color.TRANSPARENT);
+                        indicator.setStroke(satisfied ? Color.web("#F05133") : Color.web("#5B6472"));
+                    }
+                    if (progress.goalSatisfied()) {
                         onLevelGoalSatisfied();
                     }
                 },
@@ -435,7 +495,7 @@ public final class SandboxController {
         levelCompletedThisSession = true;
         CampaignProgress progress = progressStore.load();
         boolean firstTime = !progress.isLevelCompleted(activeLevel.id());
-        progress.recordCompletion(activeLevel.id(), hintTierUsed);
+        progress.recordCompletion(activeLevel.id(), hintsUsedThisAttempt);
         progressStore.save(progress);
 
         Alert done = new Alert(AlertType.INFORMATION,

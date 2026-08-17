@@ -2,26 +2,34 @@ package com.gitquest.core.campaign;
 
 import java.time.Instant;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
- * Which levels are completed, and derived arc-unlock state. Per CLAUDE.md's
- * campaign-save requirement: a replay of an already-completed level must
- * never alter its stored record — {@link #recordCompletion} only ever
- * writes a level's *first* completion ({@code putIfAbsent}), so calling it
- * again (a replay, win or lose) is always a no-op for that level.
+ * Which levels are completed, which levels' tutorials have already been watched, and derived
+ * arc-unlock state. Per CLAUDE.md's campaign-save requirement: a replay of an already-completed
+ * level must never alter its stored record — {@link #recordCompletion} only ever writes a level's
+ * *first* completion ({@code putIfAbsent}), so calling it again (a replay, win or lose) is always
+ * a no-op for that level.
  */
 public final class CampaignProgress {
 
     private final Map<String, LevelCompletionRecord> completions;
+    private final Set<String> tutorialsWatched;
 
     public CampaignProgress() {
-        this(Map.of());
+        this(Map.of(), Set.of());
     }
 
     public CampaignProgress(Map<String, LevelCompletionRecord> completions) {
+        this(completions, Set.of());
+    }
+
+    public CampaignProgress(Map<String, LevelCompletionRecord> completions, Set<String> tutorialsWatched) {
         this.completions = new LinkedHashMap<>(completions);
+        this.tutorialsWatched = new LinkedHashSet<>(tutorialsWatched);
     }
 
     public boolean isLevelCompleted(String levelId) {
@@ -81,5 +89,18 @@ public final class CampaignProgress {
 
     public int completedCount() {
         return completions.size();
+    }
+
+    /** Once watched (finished or explicitly skipped), a level's tutorial no longer auto-shows on Play — see {@code CampaignController}. */
+    public boolean hasTutorialBeenWatched(String levelId) {
+        return tutorialsWatched.contains(levelId);
+    }
+
+    public void markTutorialWatched(String levelId) {
+        tutorialsWatched.add(levelId);
+    }
+
+    public Set<String> tutorialsWatched() {
+        return Set.copyOf(tutorialsWatched);
     }
 }

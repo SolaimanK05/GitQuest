@@ -301,3 +301,34 @@
     -fx-text-fill: -git-accent-hover;
     -fx-font-weight: bold;
 }
+
+/* --- Per-objective checklist hint (a standalone TitledPane, not nested in the sidebar
+   Accordion, so it doesn't inherit the .accordion-scoped titled-pane rules above) --- */
+
+.checklist-hint-pane {
+    -fx-font-size: 11px;
+}
+
+.checklist-hint-pane > .title {
+    -fx-background-color: -bg-panel-alt;
+    -fx-background-radius: 4px;
+    -fx-padding: 2px 6px;
+    -fx-min-height: 22px;
+    -fx-pref-height: 22px;
+}
+
+.checklist-hint-pane > .title > .text,
+.checklist-hint-pane > .title .text {
+    -fx-fill: -text-secondary;
+    -fx-font-size: 11px;
+}
+
+.checklist-hint-pane > .title > .arrow-button > .arrow {
+    -fx-background-color: -text-secondary;
+}
+
+.checklist-hint-pane > .content {
+    -fx-background-color: -bg-panel-alt;
+    -fx-background-radius: 0 0 4px 4px;
+    -fx-padding: 6px 8px;
+}
