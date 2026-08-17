@@ -4,6 +4,7 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Label?>
+<?import javafx.scene.control.Tooltip?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.VBox?>
 
@@ -24,6 +25,11 @@
             <VBox alignment="CENTER" spacing="12" maxWidth="280">
                 <Button fx:id="campaignButton" text="Guided Campaign" styleClass="accent" maxWidth="Infinity"/>
                 <Button fx:id="sandboxButton" text="Enter Sandbox" maxWidth="Infinity"/>
+                <Button fx:id="collaborationButton" text="Collaboration Demo" maxWidth="Infinity">
+                    <tooltip>
+                        <Tooltip text="Two independent clones sharing one local &quot;origin&quot; — push/fetch/pull between them to see real divergence and conflicts."/>
+                    </tooltip>
+                </Button>
             </VBox>
         </VBox>
     </center>

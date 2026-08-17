@@ -14,6 +14,8 @@ public final class HomeController {
     @FXML
     private Button sandboxButton;
     @FXML
+    private Button collaborationButton;
+    @FXML
     private SkillTreeThumbnail skillTreeThumbnail;
 
     private final CampaignProgressStore progressStore = new CampaignProgressStore();
@@ -23,6 +25,7 @@ public final class HomeController {
     private void initialize() {
         campaignButton.setOnAction(e -> navigator.showCampaign());
         sandboxButton.setOnAction(e -> navigator.showEntry());
+        collaborationButton.setOnAction(e -> navigator.showCollaboration());
         skillTreeThumbnail.setOnMouseClicked(e -> navigator.showCampaign());
     }
 

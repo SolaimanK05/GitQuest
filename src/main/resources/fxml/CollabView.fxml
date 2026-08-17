@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.SplitPane?>
+<?import javafx.scene.control.Tooltip?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+
+<BorderPane xmlns="http://javafx.com/javafx"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.gitquest.ui.collab.CollabController"
+            styleClass="root">
+
+    <top>
+        <VBox styleClass="status-bar" spacing="4">
+            <padding>
+                <Insets top="10" right="16" bottom="10" left="16"/>
+            </padding>
+            <HBox spacing="12" alignment="CENTER_LEFT">
+                <Button fx:id="backButton" text="&#8592; Home">
+                    <tooltip>
+                        <Tooltip text="Back to the Home screen"/>
+                    </tooltip>
+                </Button>
+                <Label text="Collaboration Demo" style="-fx-font-weight: bold; -fx-font-size: 14px;"/>
+            </HBox>
+            <Label wrapText="true" styleClass="sub-label"
+                   text="Clone A and Clone B are two independent local repos that both track the same shared &quot;origin&quot; — a local bare repo standing in for something like GitHub. Push from one side, then Fetch/Pull (or watch the passive update notice) on the other to experience real divergence and conflicts, not staged ones."/>
+            <Label fx:id="statusLabel" styleClass="sub-label"/>
+        </VBox>
+    </top>
+
+    <center>
+        <SplitPane dividerPositions="0.5">
+            <items>
+                <VBox>
+                    <Label text="Clone A — you" styleClass="section-heading" style="-fx-padding: 8 0 8 12;"/>
+                    <fx:include source="SandboxView.fxml" fx:id="cloneA" VBox.vgrow="ALWAYS"/>
+                </VBox>
+                <VBox>
+                    <Label text="Clone B — teammate" styleClass="section-heading" style="-fx-padding: 8 0 8 12;"/>
+                    <fx:include source="SandboxView.fxml" fx:id="cloneB" VBox.vgrow="ALWAYS"/>
+                </VBox>
+            </items>
+        </SplitPane>
+    </center>
+
+</BorderPane>

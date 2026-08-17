@@ -6,6 +6,7 @@ import java.io.UncheckedIOException;
 import com.gitquest.core.campaign.LevelDefinition;
 import com.gitquest.core.model.RepoStateModel;
 import com.gitquest.ui.campaign.CampaignController;
+import com.gitquest.ui.collab.CollabController;
 import com.gitquest.ui.common.Navigator;
 import com.gitquest.ui.entry.EntryController;
 import com.gitquest.ui.home.HomeController;
@@ -65,6 +66,7 @@ public final class SceneRouter implements Navigator {
         FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/SandboxView.fxml"));
         Parent root = load(loader);
         SandboxController controller = loader.getController();
+        controller.setNavigator(this);
         controller.setModel(model);
         setRoot(root);
     }
@@ -75,6 +77,15 @@ public final class SceneRouter implements Navigator {
         Parent root = load(loader);
         SandboxController controller = loader.getController();
         controller.setCampaignLevel(model, level, this);
+        setRoot(root);
+    }
+
+    @Override
+    public void showCollaboration() {
+        FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/CollabView.fxml"));
+        Parent root = load(loader);
+        CollabController controller = loader.getController();
+        controller.setNavigator(this);
         setRoot(root);
     }
 
