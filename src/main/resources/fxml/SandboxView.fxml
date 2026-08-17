@@ -225,6 +225,11 @@
                                         <Tooltip text="Parses every .java file and draws a file-to-file edge wherever one references a class/interface declared in another. Java-only; no classpath configuration needed."/>
                                     </tooltip>
                                 </Button>
+                                <CheckBox fx:id="codeGraphTier2Check" text="Resolve method calls">
+                                    <tooltip>
+                                        <Tooltip text="Real method-call resolution via JavaSymbolSolver instead of a name heuristic — correctly follows chained calls and inherited methods, at the cost of being slower and only available for the live working tree (disabled while scrubbing history)."/>
+                                    </tooltip>
+                                </CheckBox>
                                 <Label fx:id="codeGraphStatusLabel" styleClass="sub-label"/>
                                 <Label text="History:" style="-fx-padding: 0 0 0 16;"/>
                                 <Slider fx:id="codeGraphTimeTravelSlider" HBox.hgrow="ALWAYS" min="0" max="0" value="0" majorTickUnit="1"/>
