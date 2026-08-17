@@ -149,6 +149,50 @@ class JavaDependencyAnalyzerTest {
         assertTrue(graph.filePaths().contains("Fine.java"));
     }
 
+    // ---- Tier 2: real method-call resolution via JavaSymbolSolver (CLAUDE.md 4.3 stretch) ----
+
+    @Test
+    void tier1MissesInheritedCallButTier2ResolvesIt() throws IOException {
+        Path root = Files.createTempDirectory("jda-test");
+        write(root, "Base.java", "class Base { void helper() { } }");
+        write(root, "Derived.java", "class Derived extends Base { void run() { helper(); } }");
+
+        JavaDependencyGraph tier1 = JavaDependencyAnalyzer.analyze(root);
+        assertTrue(tier1.edges().stream().noneMatch(e -> e.referencedMethodNames().contains("helper()")),
+                "Tier 1's heuristic requires an explicit scope, so a scope-less inherited call is a known gap");
+
+        JavaDependencyGraph tier2 = JavaDependencyAnalyzer.analyzeWithSymbolResolution(root);
+        assertTrue(edgeBetween(tier2, "Derived.java", "Base.java").referencedMethodNames().contains("helper()"),
+                "Tier 2 should resolve the inherited call to where helper() is actually declared");
+    }
+
+    @Test
+    void tier1MissesChainedCallButTier2ResolvesIt() throws IOException {
+        Path root = Files.createTempDirectory("jda-test");
+        write(root, "Widget.java", "class Widget { void activate() { } }");
+        write(root, "Factory.java", "class Factory { Widget makeWidget() { return new Widget(); } }");
+        write(root, "Client.java", "class Client { void go() { new Factory().makeWidget().activate(); } }");
+
+        JavaDependencyGraph tier1 = JavaDependencyAnalyzer.analyze(root);
+        assertTrue(tier1.edges().stream().noneMatch(e -> e.referencedMethodNames().contains("activate()")),
+                "Tier 1's heuristic only follows a bare-name scope, so a chained call is a known gap");
+
+        JavaDependencyGraph tier2 = JavaDependencyAnalyzer.analyzeWithSymbolResolution(root);
+        assertTrue(edgeBetween(tier2, "Client.java", "Widget.java").referencedMethodNames().contains("activate()"),
+                "Tier 2 should resolve the chained call's declaring type through real type inference");
+    }
+
+    @Test
+    void tier2UnresolvableExternalCallIsSkippedNotThrown() throws IOException {
+        Path root = Files.createTempDirectory("jda-test");
+        write(root, "Client.java", "import java.util.ArrayList; class Client { void go() { new ArrayList<String>().add(\"x\"); } }");
+
+        JavaDependencyGraph graph = JavaDependencyAnalyzer.analyzeWithSymbolResolution(root);
+
+        assertTrue(graph.filesWithParseErrors().isEmpty());
+        assertTrue(graph.edges().isEmpty(), "the only call is on a JDK type with no other file to point at");
+    }
+
     private static void write(Path root, String name, String content) throws IOException {
         Files.writeString(root.resolve(name), content);
     }

@@ -23,6 +23,11 @@ import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
+import com.github.javaparser.resolution.declarations.ResolvedMethodDeclaration;
+import com.github.javaparser.symbolsolver.JavaSymbolSolver;
+import com.github.javaparser.symbolsolver.resolution.typesolvers.CombinedTypeSolver;
+import com.github.javaparser.symbolsolver.resolution.typesolvers.JavaParserTypeSolver;
+import com.github.javaparser.symbolsolver.resolution.typesolvers.ReflectionTypeSolver;
 
 /**
  * Builds a {@link JavaDependencyGraph} by parsing every {@code .java} file's
@@ -49,6 +54,10 @@ import com.github.javaparser.ast.type.ClassOrInterfaceType;
  * can be fed either the live working directory ({@link #analyze(Path)}) or
  * a historical commit's blobs (read via {@code HistoricalJavaSourceReader},
  * no checkout) for the Code Graph's time-travel scrubber.
+ *
+ * <p>{@link #analyzeWithSymbolResolution(Path)} is Tier 2 (CLAUDE.md 4.3 stretch): real method-call
+ * resolution via {@link JavaSymbolSolver} instead of the scope-name heuristic above — see its own
+ * javadoc for what that buys and what it costs.
  *
  * <p>Overloaded simple names across files (ambiguous — skipped rather than
  * guessed), and anything needing real symbol resolution (polymorphism,
@@ -90,8 +99,104 @@ public final class JavaDependencyAnalyzer {
 
     /** The actual analysis, independent of where the source text came from. See the class doc. */
     public static JavaDependencyGraph analyzeSources(Map<String, String> sourceByPath) {
-        JavaParser parser = new JavaParser(CONFIG);
+        ParsedFiles parsed = parseAll(sourceByPath, new JavaParser(CONFIG));
 
+        Map<String, Map<String, EdgeAccumulator>> edgesByFile = new LinkedHashMap<>();
+        for (Map.Entry<String, CompilationUnit> entry : parsed.parsedByFile().entrySet()) {
+            String fromPath = entry.getKey();
+            CompilationUnit cu = entry.getValue();
+            accumulateTypeEdges(fromPath, cu, parsed.declaredBy(), edgesByFile);
+
+            Map<String, String> localTypeBySymbol = localSymbolTypes(cu);
+            for (MethodCallExpr call : cu.findAll(MethodCallExpr.class)) {
+                Optional<Expression> scope = call.getScope();
+                if (scope.isEmpty() || !scope.get().isNameExpr()) {
+                    continue; // no scope (this/inherited) or a shape we don't heuristically resolve (chains, this.x, ...)
+                }
+                String scopeName = scope.get().asNameExpr().getNameAsString();
+                String declaredType = localTypeBySymbol.getOrDefault(scopeName, scopeName); // falls back to static-call-on-class-name
+                String toPath = resolveUnambiguous(parsed.declaredBy(), declaredType);
+                if (toPath == null || toPath.equals(fromPath)) {
+                    continue;
+                }
+                accumulator(edgesByFile, fromPath, toPath).methods.add(call.getNameAsString() + "()");
+            }
+        }
+
+        return buildGraph(sourceByPath.keySet(), edgesByFile, parsed.parseErrors());
+    }
+
+    /**
+     * Tier 2 (CLAUDE.md 4.3 stretch): real method-call resolution via {@link JavaSymbolSolver} with
+     * a {@link CombinedTypeSolver} — JDK types via reflection, the project's own types via a
+     * {@link JavaParserTypeSolver} pointed at {@code root}. Unlike Tier 1's scope-name heuristic
+     * ({@link #analyzeSources}), this correctly follows chained calls ({@code getFoo().bar()}),
+     * calls with no explicit scope ({@code this}/inherited members), and real overload resolution —
+     * and since a resolved call's declaring type is where the method is actually defined (not just
+     * the local variable's declared type), an inherited-method call now correctly points at the
+     * superclass/interface file that declares it.
+     *
+     * <p>The tradeoff: {@code JavaParserTypeSolver} needs real source files on disk to resolve
+     * against, so unlike {@link #analyzeSources} this only works against a real directory — there's
+     * no way to point it at a historical commit's blobs without checking them out somewhere, so the
+     * Code Graph's time-travel scrubber stays on Tier 1 for historical points (see
+     * {@code SandboxController}). Type-reference edges are unchanged from Tier 1 here — only
+     * method-call edges get real resolution. Still not a compiler: an unresolvable call (external
+     * library, reflection, an incomplete classpath) is silently skipped rather than guessed, same
+     * accepted-gap spirit as Tier 1. Blocking; callers must run this off the JavaFX Application
+     * Thread.
+     */
+    public static JavaDependencyGraph analyzeWithSymbolResolution(Path root) throws IOException {
+        List<Path> javaFiles = findJavaFiles(root);
+        Map<String, String> sourceByPath = new LinkedHashMap<>();
+        Set<String> unreadable = new LinkedHashSet<>();
+        for (Path file : javaFiles) {
+            String relative = relativize(root, file);
+            try {
+                sourceByPath.put(relative, Files.readString(file));
+            } catch (IOException e) {
+                unreadable.add(relative);
+            }
+        }
+
+        CombinedTypeSolver typeSolver = new CombinedTypeSolver();
+        typeSolver.add(new ReflectionTypeSolver());
+        typeSolver.add(new JavaParserTypeSolver(root.toFile()));
+        ParserConfiguration config = new ParserConfiguration()
+                .setLanguageLevel(ParserConfiguration.LanguageLevel.JAVA_21)
+                .setSymbolResolver(new JavaSymbolSolver(typeSolver));
+        ParsedFiles parsed = parseAll(sourceByPath, new JavaParser(config));
+
+        Map<String, Map<String, EdgeAccumulator>> edgesByFile = new LinkedHashMap<>();
+        for (Map.Entry<String, CompilationUnit> entry : parsed.parsedByFile().entrySet()) {
+            String fromPath = entry.getKey();
+            CompilationUnit cu = entry.getValue();
+            accumulateTypeEdges(fromPath, cu, parsed.declaredBy(), edgesByFile);
+
+            for (MethodCallExpr call : cu.findAll(MethodCallExpr.class)) {
+                try {
+                    ResolvedMethodDeclaration resolved = call.resolve();
+                    String declaringSimpleName = simpleNameOf(resolved.declaringType().getQualifiedName());
+                    String toPath = resolveUnambiguous(parsed.declaredBy(), declaringSimpleName);
+                    if (toPath == null || toPath.equals(fromPath)) {
+                        continue;
+                    }
+                    accumulator(edgesByFile, fromPath, toPath).methods.add(call.getNameAsString() + "()");
+                } catch (Exception e) {
+                    // unresolvable -- external library call, missing classpath entry, reflection: accepted gap
+                }
+            }
+        }
+
+        Set<String> filePaths = new LinkedHashSet<>(sourceByPath.keySet());
+        Set<String> parseErrors = new LinkedHashSet<>(parsed.parseErrors());
+        parseErrors.addAll(unreadable);
+        filePaths.addAll(unreadable);
+        return buildGraph(filePaths, edgesByFile, parseErrors);
+    }
+
+    /** Parses every file, indexing which file declares which simple type name(s) — shared by Tier 1 and Tier 2. */
+    private static ParsedFiles parseAll(Map<String, String> sourceByPath, JavaParser parser) {
         Map<String, CompilationUnit> parsedByFile = new LinkedHashMap<>();
         Set<String> parseErrors = new LinkedHashSet<>();
         // simple type name -> every file that declares a type with that name (ambiguous if more than one)
@@ -117,36 +222,27 @@ public final class JavaDependencyAnalyzer {
                 parseErrors.add(relative);
             }
         }
+        return new ParsedFiles(parsedByFile, declaredBy, parseErrors);
+    }
 
-        Map<String, Map<String, EdgeAccumulator>> edgesByFile = new LinkedHashMap<>();
-        for (Map.Entry<String, CompilationUnit> entry : parsedByFile.entrySet()) {
-            String fromPath = entry.getKey();
-            CompilationUnit cu = entry.getValue();
+    private record ParsedFiles(Map<String, CompilationUnit> parsedByFile, Map<String, List<String>> declaredBy,
+            Set<String> parseErrors) {
+    }
 
-            for (String typeName : referencedTypeNames(cu)) {
-                String toPath = resolveUnambiguous(declaredBy, typeName);
-                if (toPath == null || toPath.equals(fromPath)) {
-                    continue;
-                }
-                accumulator(edgesByFile, fromPath, toPath).types.add(typeName);
+    /** Type-reference edges (imports/extends/fields/params/returns/{@code new X()}) — identical logic for Tier 1 and Tier 2. */
+    private static void accumulateTypeEdges(String fromPath, CompilationUnit cu, Map<String, List<String>> declaredBy,
+            Map<String, Map<String, EdgeAccumulator>> edgesByFile) {
+        for (String typeName : referencedTypeNames(cu)) {
+            String toPath = resolveUnambiguous(declaredBy, typeName);
+            if (toPath == null || toPath.equals(fromPath)) {
+                continue;
             }
-
-            Map<String, String> localTypeBySymbol = localSymbolTypes(cu);
-            for (MethodCallExpr call : cu.findAll(MethodCallExpr.class)) {
-                Optional<Expression> scope = call.getScope();
-                if (scope.isEmpty() || !scope.get().isNameExpr()) {
-                    continue; // no scope (this/inherited) or a shape we don't heuristically resolve (chains, this.x, ...)
-                }
-                String scopeName = scope.get().asNameExpr().getNameAsString();
-                String declaredType = localTypeBySymbol.getOrDefault(scopeName, scopeName); // falls back to static-call-on-class-name
-                String toPath = resolveUnambiguous(declaredBy, declaredType);
-                if (toPath == null || toPath.equals(fromPath)) {
-                    continue;
-                }
-                accumulator(edgesByFile, fromPath, toPath).methods.add(call.getNameAsString() + "()");
-            }
+            accumulator(edgesByFile, fromPath, toPath).types.add(typeName);
         }
+    }
 
+    private static JavaDependencyGraph buildGraph(Set<String> filePaths, Map<String, Map<String, EdgeAccumulator>> edgesByFile,
+            Set<String> parseErrors) {
         List<DependencyEdge> edges = new ArrayList<>();
         for (Map.Entry<String, Map<String, EdgeAccumulator>> fromEntry : edgesByFile.entrySet()) {
             for (Map.Entry<String, EdgeAccumulator> toEntry : fromEntry.getValue().entrySet()) {
@@ -155,8 +251,12 @@ public final class JavaDependencyAnalyzer {
                         Set.copyOf(acc.types), Set.copyOf(acc.methods)));
             }
         }
+        return new JavaDependencyGraph(Set.copyOf(filePaths), edges, Set.copyOf(parseErrors));
+    }
 
-        return new JavaDependencyGraph(Set.copyOf(sourceByPath.keySet()), edges, parseErrors);
+    private static String simpleNameOf(String qualifiedName) {
+        int lastDot = qualifiedName.lastIndexOf('.');
+        return lastDot >= 0 ? qualifiedName.substring(lastDot + 1) : qualifiedName;
     }
 
     /** Mutable per-(from,to) accumulator while scanning — converted to an immutable {@link DependencyEdge} at the end. */

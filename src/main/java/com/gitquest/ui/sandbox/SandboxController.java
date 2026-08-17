@@ -169,6 +169,8 @@ public final class SandboxController {
     @FXML
     private Button analyzeCodeGraphButton;
     @FXML
+    private CheckBox codeGraphTier2Check;
+    @FXML
     private Label codeGraphStatusLabel;
     @FXML
     private Slider codeGraphTimeTravelSlider;
@@ -267,6 +269,12 @@ public final class SandboxController {
         timeTravelSlider.valueProperty().addListener((obs, oldVal, newVal) -> onScrubberChanged(newVal.intValue()));
         treemapScrollPane.viewportBoundsProperty().addListener((obs, oldBounds, newBounds) -> renderTreemap());
         analyzeCodeGraphButton.setOnAction(e -> refreshCodeGraph());
+        codeGraphTier2Check.selectedProperty().addListener((obs, oldVal, newVal) -> {
+            if (isViewingLiveCodeGraph()) {
+                lastRenderedCodeGraphScrubberIndex = -1; // force a reload even though the slider value itself didn't change
+                onCodeGraphScrubberChanged((int) codeGraphTimeTravelSlider.getValue());
+            }
+        });
         codeGraphView.setOnNodeSelected(this::showCodeGraphFileDetail);
         codeGraphView.setOnEdgeSelected(this::showCodeGraphEdgeDetail);
         codeGraphTimeTravelSlider.valueProperty().addListener((obs, oldVal, newVal) -> onCodeGraphScrubberChanged(newVal.intValue()));
@@ -591,7 +599,10 @@ public final class SandboxController {
      * Slider position {@code codeGraphHistoryForScrubber.size()} means "live" (parses straight off
      * disk); any earlier position re-analyzes a historical commit's blobs via
      * {@link HistoricalJavaSourceReader} — no checkout, so scrubbing never touches the live
-     * working directory (CLAUDE.md 4.3).
+     * working directory (CLAUDE.md 4.3). Tier 2 symbol resolution needs real files on disk to
+     * resolve against (see {@link JavaDependencyAnalyzer#analyzeWithSymbolResolution}), so it's
+     * only offered while viewing live — the checkbox is disabled otherwise and historical points
+     * always fall back to Tier 1.
      */
     private void onCodeGraphScrubberChanged(int index) {
         if (index == lastRenderedCodeGraphScrubberIndex) {
@@ -603,8 +614,13 @@ public final class SandboxController {
         codeGraphDetailPanel.setManaged(false);
         codeGraphStatusLabel.setText("Parsing .java files...");
 
-        if (index >= codeGraphHistoryForScrubber.size()) {
-            commandService.submit(() -> JavaDependencyAnalyzer.analyze(repoRoot),
+        boolean isLive = index >= codeGraphHistoryForScrubber.size();
+        codeGraphTier2Check.setDisable(!isLive);
+
+        if (isLive) {
+            boolean useTier2 = codeGraphTier2Check.isSelected();
+            commandService.submit(
+                    () -> useTier2 ? JavaDependencyAnalyzer.analyzeWithSymbolResolution(repoRoot) : JavaDependencyAnalyzer.analyze(repoRoot),
                     this::onCodeGraphLoaded,
                     error -> codeGraphStatusLabel.setText("✗ analysis failed: " + rootMessage(error)));
             return;
