@@ -15,4 +15,7 @@ public interface Navigator {
     void showSandbox(RepoStateModel model);
 
     void showSandboxForLevel(RepoStateModel model, LevelDefinition level);
+
+    /** Two-clone collaboration sandbox (CLAUDE.md 4.5) — sets up its own pair of sessions, no model needed here. */
+    void showCollaboration();
 }

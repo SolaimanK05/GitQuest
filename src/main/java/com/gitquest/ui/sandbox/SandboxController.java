@@ -93,6 +93,8 @@ public final class SandboxController {
     @FXML
     private Button collapseSidebarButton;
     @FXML
+    private Button homeButton;
+    @FXML
     private VBox sidebarContent;
     @FXML
     private TreeView<Path> fileTree;
@@ -222,6 +224,7 @@ public final class SandboxController {
     private boolean sidebarCollapsed;
     private WorkingTreeWatcher workingTreeWatcher;
     private RemoteRefPoller remotePoller;
+    private Navigator navigator;
     private LevelDefinition activeLevel;
     private int hintTierUsed;
     private boolean levelCompletedThisSession;
@@ -252,6 +255,7 @@ public final class SandboxController {
         undoLastCommandButton.setOnAction(e -> handleUndoLastCommand());
 
         collapseSidebarButton.setOnAction(e -> toggleSidebar());
+        homeButton.setOnAction(e -> navigator.showHome());
         terminalInputField.setOnAction(e -> handleTerminalCommand());
 
         treemapOverlayChoice.getItems().setAll("Size", "Churn", "Recency");
@@ -289,6 +293,15 @@ public final class SandboxController {
                 refreshConflictedFilesList();
             }
         });
+    }
+
+    /**
+     * Lets the "Home" button find its way back regardless of how this screen was entered (plain
+     * Sandbox, a Campaign level, or one side of a two-clone Collaboration session) — call before
+     * (or via) {@link #setModel}/{@link #setCampaignLevel} finishes wiring the rest of the screen.
+     */
+    public void setNavigator(Navigator navigator) {
+        this.navigator = navigator;
     }
 
     /** Finishes wiring once the repo session is known — see class javadoc. */
@@ -345,6 +358,7 @@ public final class SandboxController {
     /** Enters this Sandbox screen scoped to a Campaign level instead of free play — see class javadoc. */
     public void setCampaignLevel(RepoStateModel model, LevelDefinition level, Navigator navigator) {
         this.activeLevel = level;
+        setNavigator(navigator);
         setModel(model);
 
         campaignBanner.setVisible(true);

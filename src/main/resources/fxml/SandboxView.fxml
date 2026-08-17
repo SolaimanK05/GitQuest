@@ -59,6 +59,11 @@
                         <Tooltip text="Collapse/expand sidebar"/>
                     </tooltip>
                 </Button>
+                <Button fx:id="homeButton" text="&#127968; Home">
+                    <tooltip>
+                        <Tooltip text="Back to the Home screen"/>
+                    </tooltip>
+                </Button>
             </HBox>
 
             <VBox fx:id="sidebarContent" spacing="10" VBox.vgrow="ALWAYS">
