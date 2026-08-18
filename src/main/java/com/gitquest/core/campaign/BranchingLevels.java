@@ -29,8 +29,30 @@ final class BranchingLevels {
                         + "work at all.\n\n"
                         + "Create a new branch called feature and switch to it.",
                 "Branches are how Git lets many people (or many ideas) develop in parallel without stepping on each other.",
-                List.of(),
-                List.of(),
+                List.of(
+                        TutorialStep.of("Here's a repo with one commit on main. A branch in Git is just a "
+                                + "movable, named pointer to a commit — nothing gets copied when you create one.",
+                                (model, executor) -> {
+                                    Path workTree = model.getRepository().getWorkTree().toPath();
+                                    Files.writeString(workTree.resolve("README.md"), "A sample project.\n");
+                                    executor.stageAll();
+                                    executor.commit("Initial commit", AUTHOR_NAME, AUTHOR_EMAIL);
+                                }),
+                        TutorialStep.of("Creating a branch is instant and cheap — it only adds a new pointer "
+                                + "at the current commit. No files are duplicated anywhere on disk.",
+                                (model, executor) -> executor.createBranch("feature")),
+                        TutorialStep.of("Switching moves your working directory to match whatever that "
+                                + "pointer points to. Right now feature and main point at the exact same "
+                                + "commit, so nothing on disk even changes yet.",
+                                (model, executor) -> executor.checkout("feature")),
+                        TutorialStep.of("From here, any new commits move only the feature pointer forward, "
+                                + "leaving main exactly where it was. Your challenge repo is waiting on main "
+                                + "with one commit — create and switch to a feature branch yourself.")),
+                List.of(
+                        new ChecklistGoal("Create the feature branch", "Type: branch feature",
+                                model -> model.snapshot().branches().stream().anyMatch(b -> b.name().equals("feature"))),
+                        new ChecklistGoal("Switch to it", "Type: checkout feature",
+                                new CurrentBranchGoal("feature")::isSatisfied)),
                 (model, executor) -> {
                     Path workTree = model.getRepository().getWorkTree().toPath();
                     Files.writeString(workTree.resolve("README.md"), "A sample project.\n");
@@ -53,8 +75,36 @@ final class BranchingLevels {
                         + "You're on main. The feature branch has one commit main doesn't have yet. Merge "
                         + "feature into main.",
                 "Fast-forward is the default and simplest case — recognizing it is what makes the no-ff level right after this one make sense.",
-                List.of(),
-                List.of(),
+                List.of(
+                        TutorialStep.of("main has one commit. Let's give feature a head start.",
+                                (model, executor) -> {
+                                    Path workTree = model.getRepository().getWorkTree().toPath();
+                                    Files.writeString(workTree.resolve("README.md"), "A sample project.\n");
+                                    executor.stageAll();
+                                    executor.commit("Initial commit", AUTHOR_NAME, AUTHOR_EMAIL);
+                                }),
+                        TutorialStep.of("feature branches off and gets one commit of its own — main hasn't "
+                                + "moved at all.",
+                                (model, executor) -> {
+                                    Path workTree = model.getRepository().getWorkTree().toPath();
+                                    executor.createBranch("feature");
+                                    executor.checkout("feature");
+                                    Files.writeString(workTree.resolve("feature.txt"), "New feature work.\n");
+                                    executor.stageAll();
+                                    executor.commit("Add feature work", AUTHOR_NAME, AUTHOR_EMAIL);
+                                    executor.checkout("main");
+                                }),
+                        TutorialStep.of("Because main hasn't moved since feature branched off, merging doesn't "
+                                + "need to combine two histories — Git can just slide main's pointer forward to "
+                                + "match feature's tip. Watch: no new merge commit appears, main's pointer just "
+                                + "jumps.",
+                                (model, executor) -> executor.merge("feature", false)),
+                        TutorialStep.of("That's a fast-forward — the simplest, and most common, merge outcome. "
+                                + "Your challenge repo is in the exact same shape: on main, with feature one "
+                                + "commit ahead. Merge feature into main yourself.")),
+                List.of(
+                        new ChecklistGoal("Merge feature into main", "Type: merge feature",
+                                new RefsConvergedGoal("main", "feature")::isSatisfied)),
                 (model, executor) -> {
                     Path workTree = model.getRepository().getWorkTree().toPath();
                     Files.writeString(workTree.resolve("README.md"), "A sample project.\n");
@@ -85,8 +135,36 @@ final class BranchingLevels {
                         + "Same setup as before — main hasn't moved, feature has one commit ahead. This time, "
                         + "force a real merge commit.",
                 "This is exactly the merge-commit shape you already saw in the Sandbox tutorial — now you're making one on purpose.",
-                List.of(),
-                List.of(),
+                List.of(
+                        TutorialStep.of("Same starting shape as before: main hasn't moved, feature is one "
+                                + "commit ahead.",
+                                (model, executor) -> {
+                                    Path workTree = model.getRepository().getWorkTree().toPath();
+                                    Files.writeString(workTree.resolve("README.md"), "A sample project.\n");
+                                    executor.stageAll();
+                                    executor.commit("Initial commit", AUTHOR_NAME, AUTHOR_EMAIL);
+                                }),
+                        TutorialStep.of("feature branches off and picks up one commit of its own.",
+                                (model, executor) -> {
+                                    Path workTree = model.getRepository().getWorkTree().toPath();
+                                    executor.createBranch("feature");
+                                    executor.checkout("feature");
+                                    Files.writeString(workTree.resolve("feature.txt"), "New feature work.\n");
+                                    executor.stageAll();
+                                    executor.commit("Add feature work", AUTHOR_NAME, AUTHOR_EMAIL);
+                                    executor.checkout("main");
+                                }),
+                        TutorialStep.of("This time, pass --no-ff. Git is forced to create a real merge commit "
+                                + "— one with two parents — even though a fast-forward would have worked. That "
+                                + "merge commit is a permanent record that a branch existed and was merged in.",
+                                (model, executor) -> executor.merge("feature", true)),
+                        TutorialStep.of("Notice the shape on the graph: a real merge commit, not just a "
+                                + "pointer jump. Many teams require this so history keeps showing feature "
+                                + "branches instead of flattening into a single line. Do the same on your "
+                                + "challenge repo — force a real merge commit.")),
+                List.of(
+                        new ChecklistGoal("Merge feature into main with --no-ff", "Type: merge feature --no-ff",
+                                new MergeCommitExistsGoal()::isSatisfied)),
                 (model, executor) -> {
                     Path workTree = model.getRepository().getWorkTree().toPath();
                     Files.writeString(workTree.resolve("README.md"), "A sample project.\n");
@@ -113,8 +191,33 @@ final class BranchingLevels {
                         + "doesn't have yet, so you can't accidentally throw away unmerged work this way.\n\n"
                         + "The feature branch below is already fully merged into main. Delete it.",
                 "Cleaning up merged branches is routine hygiene — real repositories accumulate dozens of stale ones if nobody bothers.",
-                List.of(),
-                List.of(),
+                List.of(
+                        TutorialStep.of("feature's work is already fully merged into main — every commit it "
+                                + "pointed to is already reachable from main.",
+                                (model, executor) -> {
+                                    Path workTree = model.getRepository().getWorkTree().toPath();
+                                    Files.writeString(workTree.resolve("README.md"), "A sample project.\n");
+                                    executor.stageAll();
+                                    executor.commit("Initial commit", AUTHOR_NAME, AUTHOR_EMAIL);
+                                    executor.createBranch("feature");
+                                    executor.checkout("feature");
+                                    Files.writeString(workTree.resolve("feature.txt"), "New feature work.\n");
+                                    executor.stageAll();
+                                    executor.commit("Add feature work", AUTHOR_NAME, AUTHOR_EMAIL);
+                                    executor.checkout("main");
+                                    executor.merge("feature", false);
+                                }),
+                        TutorialStep.of("Once a branch's work is merged, keeping its name around is just "
+                                + "clutter. Deleting it loses nothing — the commits stay reachable through main.",
+                                (model, executor) -> executor.deleteBranch("feature")),
+                        TutorialStep.of("feature is just gone from the graph — no error, because Git already "
+                                + "confirmed nothing on it was unmerged. If it had unreachable commits, delete "
+                                + "would have refused instead."),
+                        TutorialStep.of("Your challenge repo has the same fully-merged feature branch waiting. "
+                                + "Delete it yourself.")),
+                List.of(
+                        new ChecklistGoal("Delete the feature branch", "Type: delete feature",
+                                new BranchAbsentGoal("feature")::isSatisfied)),
                 (model, executor) -> {
                     Path workTree = model.getRepository().getWorkTree().toPath();
                     Files.writeString(workTree.resolve("README.md"), "A sample project.\n");
