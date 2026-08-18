@@ -348,3 +348,16 @@
     -fx-background-radius: 12px;
     -fx-padding: 8px 12px;
 }
+
+.ask-assistant-button {
+    -fx-background-color: transparent;
+    -fx-text-fill: -git-accent;
+    -fx-font-size: 11px;
+    -fx-padding: 2px 0 0 0;
+    -fx-border-color: transparent;
+    -fx-cursor: hand;
+}
+
+.ask-assistant-button:hover {
+    -fx-underline: true;
+}

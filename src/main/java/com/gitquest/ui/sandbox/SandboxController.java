@@ -23,6 +23,7 @@ import com.gitquest.core.assistant.GeminiClient;
 import com.gitquest.core.assistant.GeminiConfig;
 import com.gitquest.core.assistant.RepoContextSummary;
 import com.gitquest.core.campaign.CampaignProgress;
+import com.gitquest.core.campaign.ChecklistGoal;
 import com.gitquest.core.campaign.LevelDefinition;
 import com.gitquest.core.codegraph.DependencyEdge;
 import com.gitquest.core.codegraph.HistoricalJavaSourceReader;
@@ -440,6 +441,10 @@ public final class SandboxController {
                 });
                 itemBox.getChildren().add(hintPane);
             }
+            Button askAssistantButton = new Button("💬 Ask the Assistant");
+            askAssistantButton.getStyleClass().add("ask-assistant-button");
+            askAssistantButton.setOnAction(e -> askAssistantAboutObjective(level, item));
+            itemBox.getChildren().add(askAssistantButton);
             checklistBox.getChildren().add(itemBox);
         }
 
@@ -493,21 +498,51 @@ public final class SandboxController {
 
     private void handleSendChatMessage() {
         String text = assistantInputField.getText();
-        if (text == null || text.isBlank() || assistantRequestInFlight || !GeminiConfig.isConfigured()) {
+        if (text == null || text.isBlank()) {
             return;
         }
         assistantInputField.clear();
+        sendChatMessage(text);
+    }
+
+    /**
+     * Composes and sends the same "Stuck? Ask the Assistant" prompt a per-objective button in the
+     * campaign checklist fires — switches to the Assistant tab and asks on the user's behalf,
+     * grounded in the specific objective (and its static hint, if any) they're stuck on, rather
+     * than leaving the checklist hints and the live tutor as two disconnected features.
+     */
+    private void askAssistantAboutObjective(LevelDefinition level, ChecklistGoal item) {
+        mainTabPane.getSelectionModel().select(assistantTab);
+        // The full level title/objective goes into the system instruction on every campaign-mode
+        // message (see buildSystemInstruction) whether it's this button or a typed question, so the
+        // VISIBLE bubble only needs the specific step -- no need to restate the whole level brief.
+        StringBuilder prompt = new StringBuilder();
+        prompt.append("I'm stuck on this step: \"").append(item.describeObjective()).append("\".");
+        if (item.hint() != null && !item.hint().isBlank()) {
+            prompt.append(" The hint for it says: \"").append(item.hint()).append("\".");
+        }
+        prompt.append(" Can you explain what I need to do here and why?");
+        sendChatMessage(prompt.toString());
+    }
+
+    /** Shared send path for both a typed message and an auto-composed "ask about this objective" prompt. */
+    private void sendChatMessage(String text) {
+        if (assistantRequestInFlight || !GeminiConfig.isConfigured()) {
+            return;
+        }
         appendChatBubble("user", text);
         setAssistantBusy(true);
 
         List<ChatMessage> historySnapshot = List.copyOf(chatHistory);
         TreeItem<Path> selectedItem = fileTree.getSelectionModel().getSelectedItem();
         Path selectedFile = selectedItem != null ? selectedItem.getValue() : null;
+        LevelDefinition levelForContext = activeLevel;
         commandService.submit(
                 () -> {
                     RepoSnapshot snapshot = model.snapshot();
                     StatusSnapshot status = commandExecutor.status();
                     String systemInstruction = ASSISTANT_PERSONA + "\n\n" + RepoContextSummary.build(snapshot, status)
+                            + buildCampaignLevelSection(levelForContext)
                             + buildAttachedFileSection(selectedFile);
                     return geminiClient.generateReply(systemInstruction, historySnapshot, text);
                 },
@@ -521,6 +556,15 @@ public final class SandboxController {
                     appendChatBubble("model", "⚠ " + rootMessage(error));
                     setAssistantBusy(false);
                 });
+    }
+
+    /** Absent in free-play Sandbox; present on every message during a campaign level, not just the "Ask the Assistant" button, so a typed question also gets this grounding for free. */
+    private static String buildCampaignLevelSection(LevelDefinition level) {
+        if (level == null) {
+            return "";
+        }
+        return "\n\nThe user is playing campaign level \"" + level.title() + "\". Its full objective is: "
+                + level.objective() + "\n";
     }
 
     private static final long MAX_ATTACHED_FILE_BYTES = 200_000;
