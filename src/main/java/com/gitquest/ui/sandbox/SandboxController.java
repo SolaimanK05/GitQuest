@@ -10,9 +10,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Callable;
@@ -20,12 +18,12 @@ import java.util.stream.Collectors;
 
 import org.eclipse.jgit.lib.ObjectId;
 
+import com.gitquest.core.assistant.ChatMessage;
+import com.gitquest.core.assistant.GeminiClient;
+import com.gitquest.core.assistant.GeminiConfig;
+import com.gitquest.core.assistant.RepoContextSummary;
 import com.gitquest.core.campaign.CampaignProgress;
 import com.gitquest.core.campaign.LevelDefinition;
-import com.gitquest.core.codebase.CodebaseAnalyzer;
-import com.gitquest.core.codebase.FileEntry;
-import com.gitquest.core.codebase.HistoricalTreeReader;
-import com.gitquest.core.codebase.WorkingTreeScanner;
 import com.gitquest.core.codegraph.DependencyEdge;
 import com.gitquest.core.codegraph.HistoricalJavaSourceReader;
 import com.gitquest.core.codegraph.JavaDependencyAnalyzer;
@@ -155,27 +153,19 @@ public final class SandboxController {
     @FXML
     private TabPane mainTabPane;
     @FXML
-    private Tab codebaseTab;
+    private Tab assistantTab;
     @FXML
-    private ChoiceBox<String> treemapOverlayChoice;
+    private ScrollPane assistantScrollPane;
     @FXML
-    private Button refreshAnalysisButton;
+    private VBox assistantMessagesBox;
     @FXML
-    private Slider timeTravelSlider;
+    private Label assistantAttachedFileLabel;
     @FXML
-    private Label timeTravelLabel;
+    private Label assistantStatusLabel;
     @FXML
-    private ScrollPane treemapScrollPane;
+    private TextField assistantInputField;
     @FXML
-    private TreemapView treemapView;
-    @FXML
-    private VBox fileDetailPanel;
-    @FXML
-    private Label fileDetailPathLabel;
-    @FXML
-    private Label fileDetailStatsLabel;
-    @FXML
-    private Label fileDetailLastCommitLabel;
+    private Button assistantSendButton;
     @FXML
     private Tab codeGraphTab;
     @FXML
@@ -248,19 +238,23 @@ public final class SandboxController {
     private List<Rectangle> checklistIndicators = List.of();
     private boolean[] checklistHintExpandedOnce = new boolean[0];
 
-    // ---- codebase visualizer state (CLAUDE.md 4.3) ----
-    private Map<String, CodebaseAnalyzer.FileStats> fileStatsByPath = Map.of();
-    private FileEntry liveWorkingTreeRoot;
-    private FileEntry currentTreemapRoot;
-    private List<CommitNode> historyForScrubber = List.of();
-    private int lastRenderedScrubberIndex = -1;
-    private boolean codebaseAnalysisEverLoaded;
-
     // ---- code relationship graph state (CLAUDE.md 4.3 Tier 1) ----
     private JavaDependencyGraph currentCodeGraph;
     private boolean codeGraphEverLoaded;
     private List<CommitNode> codeGraphHistoryForScrubber = List.of();
     private int lastRenderedCodeGraphScrubberIndex = -1;
+
+    // ---- Gemini-powered Git tutor (repo-aware; replaces the old Codebase visualizer) ----
+    private static final String ASSISTANT_PERSONA =
+            "You are the GitQuest Git Tutor, embedded in a desktop app that teaches Git through "
+                    + "live animated visualization. Explain Git concepts clearly and concisely for a "
+                    + "learner. When it's relevant to the question, ground your answer in the user's "
+                    + "actual current sandbox repository state given below, instead of speaking only in "
+                    + "the abstract. Prefer short paragraphs or a few bullet points over long essays or "
+                    + "markdown tables — this reply renders as plain text, not markdown.";
+    private final GeminiClient geminiClient = new GeminiClient();
+    private final List<ChatMessage> chatHistory = new ArrayList<>();
+    private boolean assistantRequestInFlight;
 
     @FXML
     private void initialize() {
@@ -277,14 +271,20 @@ public final class SandboxController {
         openSandboxFolderButton.setOnAction(e -> openSandboxFolder());
         terminalInputField.setOnAction(e -> handleTerminalCommand());
 
-        treemapOverlayChoice.getItems().setAll("Size", "Churn", "Recency");
-        treemapOverlayChoice.setValue("Size");
-        treemapOverlayChoice.getSelectionModel().selectedItemProperty()
-                .addListener((obs, oldVal, newVal) -> renderTreemap());
-        treemapView.setOnFileSelected(this::showFileDetail);
-        refreshAnalysisButton.setOnAction(e -> refreshCodebaseAnalysis());
-        timeTravelSlider.valueProperty().addListener((obs, oldVal, newVal) -> onScrubberChanged(newVal.intValue()));
-        treemapScrollPane.viewportBoundsProperty().addListener((obs, oldBounds, newBounds) -> renderTreemap());
+        assistantSendButton.setOnAction(e -> handleSendChatMessage());
+        assistantInputField.setOnAction(e -> handleSendChatMessage());
+        fileTree.getSelectionModel().selectedItemProperty()
+                .addListener((obs, oldItem, newItem) -> updateAssistantAttachedFileLabel(newItem));
+        updateAssistantAttachedFileLabel(null);
+        if (!GeminiConfig.isConfigured()) {
+            assistantStatusLabel.setText("Set the GEMINI_API_KEY environment variable (and restart GitQuest) "
+                    + "to enable the AI Git tutor.");
+            assistantStatusLabel.setVisible(true);
+            assistantStatusLabel.setManaged(true);
+            assistantInputField.setDisable(true);
+            assistantSendButton.setDisable(true);
+        }
+
         analyzeCodeGraphButton.setOnAction(e -> refreshCodeGraph());
         codeGraphTier2Check.selectedProperty().addListener((obs, oldVal, newVal) -> {
             if (isViewingLiveCodeGraph()) {
@@ -301,9 +301,6 @@ public final class SandboxController {
         fetchNowButton.setOnAction(e -> run("git fetch", commandExecutor::fetch));
         checkRemoteButton.setOnAction(e -> handleCheckRemote());
         mainTabPane.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
-            if (newTab == codebaseTab && !codebaseAnalysisEverLoaded) {
-                refreshCodebaseAnalysis();
-            }
             if (oldTab == codeGraphTab) {
                 codeGraphView.stopPhysics(); // pause the simulation while the tab isn't visible
             }
@@ -369,19 +366,6 @@ public final class SandboxController {
         TreeItem<Path> newTree = FileTreeBuilder.buildTree(repoRoot);
         Platform.runLater(() -> fileTree.setRoot(newTree));
         refreshDirtyCount();
-        // Keep file sizes live without re-running the (expensive, per-file git log) churn
-        // analysis on every edit — that stays a manual "Refresh Analysis" action.
-        if (codebaseAnalysisEverLoaded) {
-            commandService.submit(() -> WorkingTreeScanner.scan(repoRoot),
-                    workingTree -> {
-                        liveWorkingTreeRoot = workingTree;
-                        if (isViewingLive()) {
-                            currentTreemapRoot = workingTree;
-                            renderTreemap();
-                        }
-                    },
-                    error -> { /* transient scan failure; the next file-watcher tick will retry */ });
-        }
     }
 
     // ---- campaign mode ----
@@ -505,147 +489,96 @@ public final class SandboxController {
         done.showAndWait();
     }
 
-    // ---- codebase visualizer (CLAUDE.md 4.3) ----
+    // ---- Gemini-powered Git tutor ----
 
-    private record CodebaseSnapshot(FileEntry workingTree, Map<String, CodebaseAnalyzer.FileStats> stats) {
-    }
-
-    private void refreshCodebaseAnalysis() {
-        codebaseAnalysisEverLoaded = true;
-        logLine("Analyzing codebase (churn/recency)...");
-        commandService.submit(this::computeCodebaseSnapshot, this::onCodebaseAnalysisLoaded,
-                error -> logLine("  ✗ codebase analysis failed: " + rootMessage(error)));
-    }
-
-    /** Off the FX thread: a full working-tree scan plus one path-filtered {@code git log} per file. */
-    private CodebaseSnapshot computeCodebaseSnapshot() throws Exception {
-        FileEntry workingTree = WorkingTreeScanner.scan(repoRoot);
-        Map<String, CodebaseAnalyzer.FileStats> stats = new HashMap<>();
-        for (String path : collectFilePaths(workingTree)) {
-            stats.put(path, CodebaseAnalyzer.analyze(model.getGit(), path));
-        }
-        return new CodebaseSnapshot(workingTree, stats);
-    }
-
-    private static List<String> collectFilePaths(FileEntry entry) {
-        List<String> paths = new ArrayList<>();
-        collectFilePaths(entry, paths);
-        return paths;
-    }
-
-    private static void collectFilePaths(FileEntry entry, List<String> out) {
-        if (entry.directory()) {
-            for (FileEntry child : entry.children()) {
-                collectFilePaths(child, out);
-            }
-        } else {
-            out.add(entry.relativePath());
-        }
-    }
-
-    private void onCodebaseAnalysisLoaded(CodebaseSnapshot snapshot) {
-        liveWorkingTreeRoot = snapshot.workingTree();
-        fileStatsByPath = snapshot.stats();
-        logLine("  ✓ codebase analysis done (" + fileStatsByPath.size() + " file(s))");
-        setupTimeTravelSlider();
-    }
-
-    /** Slider position {@code historyForScrubber.size()} means "live" (the working tree, dirty edits included). */
-    private void setupTimeTravelSlider() {
-        historyForScrubber = model.snapshot().commits();
-        int liveIndex = historyForScrubber.size();
-        timeTravelSlider.setMin(0);
-        timeTravelSlider.setMax(liveIndex);
-        lastRenderedScrubberIndex = -1; // force a render even if the value doesn't actually change below
-        if (timeTravelSlider.getValue() == liveIndex) {
-            onScrubberChanged(liveIndex);
-        } else {
-            timeTravelSlider.setValue(liveIndex);
-        }
-    }
-
-    private boolean isViewingLive() {
-        return Math.round(timeTravelSlider.getValue()) >= historyForScrubber.size();
-    }
-
-    /** Reads the historical tree at a scrubbed commit via {@link HistoricalTreeReader} — no checkout, live working tree untouched. */
-    private void onScrubberChanged(int index) {
-        if (index == lastRenderedScrubberIndex || liveWorkingTreeRoot == null) {
+    private void handleSendChatMessage() {
+        String text = assistantInputField.getText();
+        if (text == null || text.isBlank() || assistantRequestInFlight || !GeminiConfig.isConfigured()) {
             return;
         }
-        lastRenderedScrubberIndex = index;
-        updateScrubberLabel(index);
-        if (index >= historyForScrubber.size()) {
-            currentTreemapRoot = liveWorkingTreeRoot;
-            renderTreemap();
-            return;
-        }
-        ObjectId commitId = historyForScrubber.get(index).id();
-        commandService.submit(() -> HistoricalTreeReader.read(model.getRepository(), commitId),
-                tree -> {
-                    currentTreemapRoot = tree;
-                    renderTreemap();
+        assistantInputField.clear();
+        appendChatBubble("user", text);
+        setAssistantBusy(true);
+
+        List<ChatMessage> historySnapshot = List.copyOf(chatHistory);
+        TreeItem<Path> selectedItem = fileTree.getSelectionModel().getSelectedItem();
+        Path selectedFile = selectedItem != null ? selectedItem.getValue() : null;
+        commandService.submit(
+                () -> {
+                    RepoSnapshot snapshot = model.snapshot();
+                    StatusSnapshot status = commandExecutor.status();
+                    String systemInstruction = ASSISTANT_PERSONA + "\n\n" + RepoContextSummary.build(snapshot, status)
+                            + buildAttachedFileSection(selectedFile);
+                    return geminiClient.generateReply(systemInstruction, historySnapshot, text);
                 },
-                error -> logLine("  ✗ couldn't read history at that point: " + rootMessage(error)));
+                reply -> {
+                    chatHistory.add(ChatMessage.user(text));
+                    chatHistory.add(ChatMessage.model(reply));
+                    appendChatBubble("model", reply);
+                    setAssistantBusy(false);
+                },
+                error -> {
+                    appendChatBubble("model", "⚠ " + rootMessage(error));
+                    setAssistantBusy(false);
+                });
     }
 
-    private void updateScrubberLabel(int index) {
-        if (index >= historyForScrubber.size()) {
-            timeTravelLabel.setText("Live (working tree)");
+    private static final long MAX_ATTACHED_FILE_BYTES = 200_000;
+    private static final int MAX_ATTACHED_FILE_CHARS = 40_000;
+
+    /** Off the FX thread (called from within the commandService.submit lambda above) — file reads are disk I/O. */
+    private String buildAttachedFileSection(Path selectedFile) {
+        if (selectedFile == null || !Files.isRegularFile(selectedFile)) {
+            return "";
+        }
+        String relative = repoRoot.relativize(selectedFile).toString().replace('\\', '/');
+        try {
+            long size = Files.size(selectedFile);
+            if (size > MAX_ATTACHED_FILE_BYTES) {
+                return "\n\nThe user has " + relative + " selected in the sidebar, but it's too large ("
+                        + size + " bytes) to include here — if asked about it, say so rather than guessing.\n";
+            }
+            String content = Files.readString(selectedFile);
+            if (content.length() > MAX_ATTACHED_FILE_CHARS) {
+                content = content.substring(0, MAX_ATTACHED_FILE_CHARS) + "\n... [truncated]";
+            }
+            return "\n\nThe user currently has this file selected in the sidebar — if their question seems to "
+                    + "be about \"this file\"/\"this code\", ground your answer in it:\n\n"
+                    + relative + ":\n```\n" + content + "\n```\n";
+        } catch (IOException e) {
+            // Likely a binary file JGit-style text tools can't decode -- just omit it rather than
+            // failing the whole chat turn over an unreadable attachment.
+            return "\n\nThe user has " + relative + " selected, but it couldn't be read as text "
+                    + "(possibly a binary file) — if asked about it, say so rather than guessing.\n";
+        }
+    }
+
+    private void updateAssistantAttachedFileLabel(TreeItem<Path> selectedItem) {
+        Path selected = selectedItem != null ? selectedItem.getValue() : null;
+        if (selected == null || !Files.isRegularFile(selected)) {
+            assistantAttachedFileLabel.setText("No file selected — click a file in the sidebar to ask about its code.");
             return;
         }
-        CommitNode commit = historyForScrubber.get(index);
-        String when = SCRUBBER_TIME.format(Instant.ofEpochSecond(commit.commitEpochSeconds()).atZone(ZoneId.systemDefault()));
-        timeTravelLabel.setText(when + " — " + commit.shortMessage());
+        String relative = repoRoot.relativize(selected).toString().replace('\\', '/');
+        assistantAttachedFileLabel.setText("📎 Attached: " + relative);
     }
 
-    /** Re-lays out {@link #currentTreemapRoot} to fill the scroll pane's viewport, morphing existing cells (CLAUDE.md Section 6). */
-    private void renderTreemap() {
-        if (currentTreemapRoot == null) {
-            return;
-        }
-        treemapView.setColorFunction(currentColorFunction());
-        var viewport = treemapScrollPane.getViewportBounds();
-        double width = Math.max(viewport.getWidth(), 200);
-        double height = Math.max(viewport.getHeight(), 200);
-        treemapView.render(currentTreemapRoot, width, height);
+    private void appendChatBubble(String role, String text) {
+        Label bubble = new Label(text);
+        bubble.setWrapText(true);
+        bubble.setMaxWidth(520);
+        bubble.getStyleClass().add("user".equals(role) ? "chat-bubble-user" : "chat-bubble-model");
+        HBox row = new HBox(bubble);
+        row.setAlignment("user".equals(role) ? Pos.CENTER_RIGHT : Pos.CENTER_LEFT);
+        assistantMessagesBox.getChildren().add(row);
+        // The VBox's height hasn't updated within this call yet -- defer the scroll a pulse.
+        Platform.runLater(() -> assistantScrollPane.setVvalue(1.0));
     }
 
-    private java.util.function.Function<FileEntry, javafx.scene.paint.Color> currentColorFunction() {
-        return switch (treemapOverlayChoice.getValue()) {
-            case "Churn" -> TreemapColorModes.byChurn(fileStatsByPath);
-            case "Recency" -> TreemapColorModes.byRecency(fileStatsByPath);
-            default -> TreemapColorModes.byExtension();
-        };
-    }
-
-    private void showFileDetail(FileEntry entry) {
-        fileDetailPanel.setVisible(true);
-        fileDetailPanel.setManaged(true);
-        fileDetailPathLabel.setText(entry.relativePath());
-
-        CodebaseAnalyzer.FileStats stats = fileStatsByPath.get(entry.relativePath());
-        if (stats == null || stats.commitCount() == 0) {
-            fileDetailStatsLabel.setText(humanSize(entry.size()) + " — not yet committed");
-            fileDetailLastCommitLabel.setText("");
-            return;
-        }
-        fileDetailStatsLabel.setText(humanSize(entry.size()) + " — " + stats.commitCount() + " commit(s) — "
-                + stats.contributors().size() + " contributor(s): " + String.join(", ", stats.contributors()));
-        String lastWhen = SCRUBBER_TIME.format(
-                Instant.ofEpochSecond(stats.lastCommitEpochSeconds()).atZone(ZoneId.systemDefault()));
-        fileDetailLastCommitLabel.setText("Last: \"" + stats.lastCommitMessage() + "\" (" + lastWhen + ")");
-    }
-
-    private static String humanSize(long bytes) {
-        if (bytes < 1024) {
-            return bytes + " B";
-        }
-        double kb = bytes / 1024.0;
-        if (kb < 1024) {
-            return String.format("%.1f KB", kb);
-        }
-        return String.format("%.1f MB", kb / 1024.0);
+    private void setAssistantBusy(boolean busy) {
+        assistantRequestInFlight = busy;
+        assistantInputField.setDisable(busy);
+        assistantSendButton.setDisable(busy);
     }
 
     // ---- code relationship graph (CLAUDE.md 4.3 Tier 1) ----
@@ -1128,7 +1061,6 @@ public final class SandboxController {
         refreshDirtyCount();
         refreshFileTree();
         checkLevelGoal();
-        refreshScrubberRangeAfterCommand();
         refreshCodeGraphScrubberRangeAfterCommand();
     }
 
@@ -1142,27 +1074,7 @@ public final class SandboxController {
         refreshDirtyCount();
         refreshFileTree();
         checkLevelGoal();
-        refreshScrubberRangeAfterCommand();
         refreshCodeGraphScrubberRangeAfterCommand();
-    }
-
-    /** New commits extend the time-travel scrubber's range; only bumps the position (not a re-analysis) when already viewing live. */
-    private void refreshScrubberRangeAfterCommand() {
-        if (!codebaseAnalysisEverLoaded) {
-            return;
-        }
-        boolean wasAtLive = isViewingLive();
-        historyForScrubber = model.snapshot().commits();
-        int liveIndex = historyForScrubber.size();
-        timeTravelSlider.setMax(liveIndex);
-        if (wasAtLive) {
-            if (timeTravelSlider.getValue() == liveIndex) {
-                lastRenderedScrubberIndex = -1;
-                onScrubberChanged(liveIndex);
-            } else {
-                timeTravelSlider.setValue(liveIndex);
-            }
-        }
     }
 
     private void onError(Throwable error) {

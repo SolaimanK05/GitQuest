@@ -332,3 +332,19 @@
     -fx-background-radius: 0 0 4px 4px;
     -fx-padding: 6px 8px;
 }
+
+.chat-bubble-user {
+    -fx-background-color: -git-accent;
+    -fx-text-fill: white;
+    -fx-background-radius: 12px;
+    -fx-padding: 8px 12px;
+}
+
+.chat-bubble-model {
+    -fx-background-color: -bg-panel-alt;
+    -fx-text-fill: -text-primary;
+    -fx-border-color: -border;
+    -fx-border-radius: 12px;
+    -fx-background-radius: 12px;
+    -fx-padding: 8px 12px;
+}

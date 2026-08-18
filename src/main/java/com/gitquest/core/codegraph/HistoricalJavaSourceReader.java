@@ -16,10 +16,8 @@ import org.eclipse.jgit.treewalk.TreeWalk;
  * recorded tree object via {@link TreeWalk} — never checks anything out, so
  * it never touches the live working directory. This is what lets the Code
  * Graph's time-travel scrubber re-analyze a past commit's dependency graph
- * without disturbing whatever the user is actually working on (same
- * approach as {@code com.gitquest.core.codebase.HistoricalTreeReader}, but
- * returning full file content instead of just sizes, since
- * {@link JavaDependencyAnalyzer} needs to actually parse each file).
+ * without disturbing whatever the user is actually working on, since
+ * {@link JavaDependencyAnalyzer} needs to actually parse each file's content.
  */
 public final class HistoricalJavaSourceReader {
 
