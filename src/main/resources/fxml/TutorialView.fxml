@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import com.gitquest.ui.common.LoadingIndicator?>
 <?import com.gitquest.ui.sandbox.CommitGraphView?>
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
@@ -8,6 +9,7 @@
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
 
 <BorderPane xmlns="http://javafx.com/javafx"
@@ -21,9 +23,15 @@
                 <Insets top="10" right="16" bottom="10" left="16"/>
             </padding>
             <HBox spacing="12" alignment="CENTER_LEFT">
+                <Button fx:id="backButton" text="&#8592; Skill Tree">
+                    <tooltip>
+                        <javafx.scene.control.Tooltip text="Leave the tutorial and go back to the skill tree. This won't count as watched, so Play will show it again next time."/>
+                    </tooltip>
+                </Button>
                 <Label fx:id="arcLabel" styleClass="section-heading"/>
-                <Label fx:id="titleLabel" style="-fx-font-weight: bold; -fx-font-size: 16px;"/>
+                <Label fx:id="titleLabel" styleClass="text-heading-2"/>
                 <Region HBox.hgrow="ALWAYS"/>
+                <LoadingIndicator fx:id="tutorialLoadingIndicator"/>
                 <Label fx:id="progressLabel" styleClass="sub-label"/>
                 <Button fx:id="skipButton" text="Skip Tutorial">
                     <tooltip>
@@ -35,21 +43,25 @@
     </top>
 
     <center>
-        <ScrollPane fitToWidth="false" fitToHeight="false">
+        <ScrollPane fitToWidth="true" fitToHeight="true">
             <content>
-                <CommitGraphView fx:id="commitGraphView"/>
+                <StackPane alignment="CENTER">
+                    <CommitGraphView fx:id="commitGraphView"/>
+                </StackPane>
             </content>
         </ScrollPane>
     </center>
 
     <bottom>
-        <VBox styleClass="status-bar" spacing="10">
+        <VBox styleClass="status-bar tutorial-bottom-panel" spacing="16" alignment="CENTER">
             <padding>
-                <Insets top="16" right="24" bottom="16" left="24"/>
+                <Insets top="20" right="32" bottom="20" left="32"/>
             </padding>
-            <Label fx:id="commandLabel" wrapText="true" styleClass="tutorial-command-label" visible="false" managed="false"/>
-            <Label fx:id="narrationLabel" wrapText="true" style="-fx-font-size: 14px;"/>
-            <HBox alignment="CENTER_RIGHT">
+            <VBox spacing="12" maxWidth="760" styleClass="tutorial-narration-card">
+                <Label fx:id="commandLabel" wrapText="true" styleClass="tutorial-command-label" visible="false" managed="false"/>
+                <Label fx:id="narrationLabel" wrapText="true" styleClass="tutorial-narration-text"/>
+            </VBox>
+            <HBox alignment="CENTER_RIGHT" maxWidth="760">
                 <Button fx:id="nextButton" text="Next" styleClass="accent" minWidth="140"/>
             </HBox>
         </VBox>

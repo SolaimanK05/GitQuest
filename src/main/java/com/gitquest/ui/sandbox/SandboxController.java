@@ -44,6 +44,7 @@ import com.gitquest.core.service.TempDirCleanup;
 import com.gitquest.core.service.WorkingTreeWatcher;
 import com.gitquest.persistence.CampaignProgressStore;
 import com.gitquest.ui.common.ErrorDialogs;
+import com.gitquest.ui.common.LoadingIndicator;
 import com.gitquest.ui.common.Navigator;
 
 import javafx.animation.Interpolator;
@@ -132,6 +133,8 @@ public final class SandboxController {
     @FXML
     private ListView<String> commandLog;
     @FXML
+    private LoadingIndicator terminalLoadingIndicator;
+    @FXML
     private Button stageButton;
     @FXML
     private Button commitButton;
@@ -166,6 +169,8 @@ public final class SandboxController {
     @FXML
     private TextField assistantInputField;
     @FXML
+    private LoadingIndicator assistantLoadingIndicator;
+    @FXML
     private Button assistantSendButton;
     @FXML
     private Tab codeGraphTab;
@@ -173,6 +178,8 @@ public final class SandboxController {
     private Button analyzeCodeGraphButton;
     @FXML
     private CheckBox codeGraphTier2Check;
+    @FXML
+    private LoadingIndicator codeGraphLoadingIndicator;
     @FXML
     private Label codeGraphStatusLabel;
     @FXML
@@ -488,7 +495,7 @@ public final class SandboxController {
         progressStore.save(progress);
 
         Alert done = new Alert(AlertType.INFORMATION,
-                firstTime ? "Nice work!" : "Solved again — this level was already completed earlier.",
+                firstTime ? "Nice work!" : "Solved again. This level was already completed earlier.",
                 ButtonType.OK);
         done.setHeaderText("🎉 " + activeLevel.title() + " complete");
         done.showAndWait();
@@ -600,7 +607,7 @@ public final class SandboxController {
     private void updateAssistantAttachedFileLabel(TreeItem<Path> selectedItem) {
         Path selected = selectedItem != null ? selectedItem.getValue() : null;
         if (selected == null || !Files.isRegularFile(selected)) {
-            assistantAttachedFileLabel.setText("No file selected — click a file in the sidebar to ask about its code.");
+            assistantAttachedFileLabel.setText("No file selected. Click a file in the sidebar to ask about its code.");
             return;
         }
         String relative = repoRoot.relativize(selected).toString().replace('\\', '/');
@@ -623,6 +630,7 @@ public final class SandboxController {
         assistantRequestInFlight = busy;
         assistantInputField.setDisable(busy);
         assistantSendButton.setDisable(busy);
+        assistantLoadingIndicator.setActive(busy);
     }
 
     // ---- code relationship graph (CLAUDE.md 4.3 Tier 1) ----
@@ -664,6 +672,7 @@ public final class SandboxController {
         codeGraphDetailPanel.setVisible(false);
         codeGraphDetailPanel.setManaged(false);
         codeGraphStatusLabel.setText("Parsing .java files...");
+        codeGraphLoadingIndicator.setActive(true);
 
         boolean isLive = index >= codeGraphHistoryForScrubber.size();
         codeGraphTier2Check.setDisable(!isLive);
@@ -673,14 +682,19 @@ public final class SandboxController {
             commandService.submit(
                     () -> useTier2 ? JavaDependencyAnalyzer.analyzeWithSymbolResolution(repoRoot) : JavaDependencyAnalyzer.analyze(repoRoot),
                     this::onCodeGraphLoaded,
-                    error -> codeGraphStatusLabel.setText("✗ analysis failed: " + rootMessage(error)));
+                    this::onCodeGraphLoadFailed);
             return;
         }
         ObjectId commitId = codeGraphHistoryForScrubber.get(index).id();
         commandService.submit(
                 () -> JavaDependencyAnalyzer.analyzeSources(HistoricalJavaSourceReader.read(model.getRepository(), commitId)),
                 this::onCodeGraphLoaded,
-                error -> codeGraphStatusLabel.setText("✗ analysis failed: " + rootMessage(error)));
+                this::onCodeGraphLoadFailed);
+    }
+
+    private void onCodeGraphLoadFailed(Throwable error) {
+        codeGraphLoadingIndicator.setActive(false);
+        codeGraphStatusLabel.setText("✗ analysis failed: " + rootMessage(error));
     }
 
     private void updateCodeGraphScrubberLabel(int index) {
@@ -690,7 +704,7 @@ public final class SandboxController {
         }
         CommitNode commit = codeGraphHistoryForScrubber.get(index);
         String when = SCRUBBER_TIME.format(Instant.ofEpochSecond(commit.commitEpochSeconds()).atZone(ZoneId.systemDefault()));
-        codeGraphTimeTravelLabel.setText(when + " — " + commit.shortMessage());
+        codeGraphTimeTravelLabel.setText(when + ": " + commit.shortMessage());
     }
 
     /** New commits extend the scrubber's range; only bumps the position (not a re-analysis) when already viewing live. */
@@ -713,10 +727,11 @@ public final class SandboxController {
     }
 
     private void onCodeGraphLoaded(JavaDependencyGraph graph) {
+        codeGraphLoadingIndicator.setActive(false);
         currentCodeGraph = graph;
         String status = graph.filePaths().size() + " file(s), " + graph.edges().size() + " connection(s)";
         if (!graph.filesWithParseErrors().isEmpty()) {
-            status += " — " + graph.filesWithParseErrors().size() + " couldn't be fully parsed";
+            status += ", " + graph.filesWithParseErrors().size() + " couldn't be fully parsed";
         }
         codeGraphStatusLabel.setText(status);
 
@@ -777,12 +792,12 @@ public final class SandboxController {
         codeGraphDependsOnBox.getChildren().clear();
         codeGraphUsedByBox.getChildren().clear();
         if (edge.referencedTypeNames().isEmpty()) {
-            addEmptyRow(codeGraphDependsOnBox, "None — only a method call was detected");
+            addEmptyRow(codeGraphDependsOnBox, "None, only a method call was detected");
         } else {
             edge.referencedTypeNames().forEach(type -> addSimpleRow(codeGraphDependsOnBox, type));
         }
         if (edge.referencedMethodNames().isEmpty()) {
-            addEmptyRow(codeGraphUsedByBox, "None detected — best-effort only");
+            addEmptyRow(codeGraphUsedByBox, "None detected (best-effort only)");
         } else {
             edge.referencedMethodNames().forEach(method -> addSimpleRow(codeGraphUsedByBox, method));
         }
@@ -1052,7 +1067,7 @@ public final class SandboxController {
                                 + "and restores the working tree to before the merge attempt.";
                     } else if (preview.reflogLines().isEmpty()) {
                         logLine("Undo last command");
-                        logLine("  ✗ nothing to undo yet — the reflog is empty");
+                        logLine("  ✗ nothing to undo yet: the reflog is empty");
                         return;
                     } else {
                         message = "This hard-resets back to just before:\n\n" + preview.reflogLines().get(0)
@@ -1212,7 +1227,7 @@ public final class SandboxController {
                     if (conflicted && !conflictWarningShown) {
                         conflictWarningShown = true;
                         logLine("  ⚠ merge conflict pending in " + String.join(", ", status.conflicting())
-                                + " — resolve it by hand or run \"merge --abort\"");
+                                + ": resolve it by hand or run \"merge --abort\"");
                     } else if (!conflicted) {
                         conflictWarningShown = false;
                     }
@@ -1275,7 +1290,7 @@ public final class SandboxController {
         commandService.submit(() -> ConflictDiffReader.read(model.getRepository(), filePath),
                 conflictDiffView::render,
                 error -> conflictDiffView.showMessage("Couldn't show a text diff for " + filePath
-                        + " — it may be a binary file, or a delete/rename conflict rather than two sides "
+                        + ". It may be a binary file, or a delete/rename conflict rather than two sides "
                         + "editing the same text. Resolve it by editing the file directly (or deciding "
                         + "whether to keep or delete it), then stage it."));
     }
@@ -1302,5 +1317,6 @@ public final class SandboxController {
     private void setBusy(boolean busy) {
         commandAccordion.setDisable(busy);
         terminalInputField.setDisable(busy);
+        terminalLoadingIndicator.setActive(busy);
     }
 }

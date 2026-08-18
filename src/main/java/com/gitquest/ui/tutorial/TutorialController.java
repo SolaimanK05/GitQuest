@@ -21,6 +21,7 @@ import com.gitquest.core.service.RepositorySessionFactory;
 import com.gitquest.core.service.TempDirCleanup;
 import com.gitquest.persistence.CampaignProgressStore;
 import com.gitquest.ui.common.ErrorDialogs;
+import com.gitquest.ui.common.LoadingIndicator;
 import com.gitquest.ui.common.Navigator;
 import com.gitquest.ui.sandbox.CommitGraphView;
 
@@ -46,11 +47,15 @@ public final class TutorialController {
     @FXML
     private Label progressLabel;
     @FXML
+    private LoadingIndicator tutorialLoadingIndicator;
+    @FXML
     private Label commandLabel;
     @FXML
     private Label narrationLabel;
     @FXML
     private CommitGraphView commitGraphView;
+    @FXML
+    private Button backButton;
     @FXML
     private Button nextButton;
     @FXML
@@ -66,6 +71,7 @@ public final class TutorialController {
 
     @FXML
     private void initialize() {
+        backButton.setOnAction(e -> handleBack());
         nextButton.setOnAction(e -> handleNext());
         skipButton.setOnAction(e -> beginChallenge());
     }
@@ -77,6 +83,17 @@ public final class TutorialController {
         titleLabel.setText(level.title());
         arcLabel.setText(level.arcId().toUpperCase());
         setBusy(true);
+        // Building the throwaway tutorial repo is async (real disk I/O) and it starts out with
+        // zero commits (RepositorySessionFactory.init() is a bare "git init", nothing more) --
+        // step 0's own action is usually what actually populates it, sometimes with several
+        // commits at once (e.g. "trigger a conflict" sets up a whole branch-and-merge scenario in
+        // its first step). Revealing the graph too early -- right after init, or partway through
+        // that first action -- means the enclosing StackPane centers around whatever (possibly
+        // empty, possibly not-yet-final) size the view happens to have at that moment, then visibly
+        // recenters again once the real final size is known. Staying hidden until goToStep(0) has
+        // fully applied step 0's own result is what skips every one of those wrongly-centered
+        // layout passes rather than just the first.
+        commitGraphView.setVisible(false);
 
         commandService.submit(() -> {
                     Path tempDir = Files.createTempDirectory("gitquest-tutorial-" + level.id() + "-");
@@ -87,7 +104,6 @@ public final class TutorialController {
                 model -> {
                     tutorialModel = model;
                     tutorialExecutor = new CommandExecutor(model);
-                    commitGraphView.renderInitial(model.snapshot().commits());
                     setBusy(false);
                     goToStep(0);
                 },
@@ -124,6 +140,7 @@ public final class TutorialController {
                     RepoSnapshot after = tutorialModel.snapshot();
                     GraphDiff diff = GraphDiffCalculator.diff(before, after);
                     commitGraphView.animateDiff(diff);
+                    commitGraphView.setVisible(true);
                     commitGraphView.syncRefsAndHead(after.commits(), after.headRefName(), after.headCommitId());
                     updatePendingMergeVisual(after, theirsId);
                     narrationLabel.setText(step.narration());
@@ -181,8 +198,32 @@ public final class TutorialController {
                 });
     }
 
+    /**
+     * Leaves the tutorial without touching the level's completion/tutorial-watched record at all —
+     * unlike {@link #beginChallenge()}, bailing out early shouldn't count as having watched it, so
+     * Play will still show the animated walkthrough again next time. Just discards the throwaway
+     * tutorial repo and heads back to the skill tree.
+     */
+    private void handleBack() {
+        setBusy(true);
+        RepoStateModel modelToDiscard = tutorialModel;
+        commandService.submit(() -> {
+                    if (modelToDiscard == null) {
+                        return null;
+                    }
+                    List<Path> tutorialPaths = modelToDiscard.disposablePaths();
+                    modelToDiscard.close();
+                    TempDirCleanup.deleteAll(tutorialPaths);
+                    return null;
+                },
+                ignored -> navigator.showCampaign(),
+                error -> navigator.showCampaign()); // best-effort cleanup either way -- still leave
+    }
+
     private void setBusy(boolean busy) {
+        backButton.setDisable(busy);
         nextButton.setDisable(busy);
         skipButton.setDisable(busy);
+        tutorialLoadingIndicator.setActive(busy);
     }
 }

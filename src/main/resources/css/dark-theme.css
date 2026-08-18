@@ -3,7 +3,71 @@
  * chrome/highlights (buttons, HEAD ring, active states) so it never
  * collides with the per-lane branch colors assigned in Java
  * (CommitNodeView / CommitGraphView).
+ *
+ * Type system: three bundled font families (src/main/resources/fonts), each
+ * with real static weight instances rather than relying on JavaFX trying to
+ * fake bold from a single file. Space Grotesk (a geometric, slightly
+ * technical display face) carries headings and anything meant to feel like
+ * a brand moment; Inter carries everything you actually read, since it's
+ * one of the most legible faces at small UI sizes; JetBrains Mono replaces
+ * the old plain "Consolas, monospace" everywhere code/commands show up,
+ * since it was designed specifically for that job and reads a little more
+ * distinct/technical than Consolas at a glance.
+ *
+ * A quirk worth knowing before touching this: JavaFX only links Regular and
+ * Bold as true weight-variants of one family name. Every other weight
+ * (Medium, SemiBold) loads as its own separate family name instead of a
+ * -fx-font-weight value on the base family - confirmed empirically, not
+ * assumed. That's why -font-heading below points straight at "Space
+ * Grotesk SemiBold" rather than "Space Grotesk" + a weight.
  */
+
+@font-face {
+    font-family: "Inter";
+    font-weight: normal;
+    src: url("../fonts/Inter-Regular.ttf");
+}
+@font-face {
+    font-family: "Inter";
+    font-weight: bold;
+    src: url("../fonts/Inter-Bold.ttf");
+}
+@font-face {
+    font-family: "Inter Medium";
+    src: url("../fonts/Inter-Medium.ttf");
+}
+@font-face {
+    font-family: "Inter SemiBold";
+    src: url("../fonts/Inter-SemiBold.ttf");
+}
+@font-face {
+    font-family: "Space Grotesk";
+    font-weight: normal;
+    src: url("../fonts/SpaceGrotesk-Medium.ttf");
+}
+@font-face {
+    font-family: "Space Grotesk";
+    font-weight: bold;
+    src: url("../fonts/SpaceGrotesk-Bold.ttf");
+}
+@font-face {
+    font-family: "Space Grotesk SemiBold";
+    src: url("../fonts/SpaceGrotesk-SemiBold.ttf");
+}
+@font-face {
+    font-family: "JetBrains Mono";
+    font-weight: normal;
+    src: url("../fonts/JetBrainsMono-Regular.ttf");
+}
+@font-face {
+    font-family: "JetBrains Mono";
+    font-weight: bold;
+    src: url("../fonts/JetBrainsMono-Bold.ttf");
+}
+@font-face {
+    font-family: "JetBrains Mono Medium";
+    src: url("../fonts/JetBrainsMono-Medium.ttf");
+}
 
 .root {
     -bg-base: #121212;
@@ -17,9 +81,50 @@
     -git-accent-hover: #FF6B4A;
     -git-accent-pressed: #D6432A;
 
+    /* A second accent for informational/neutral states (e.g. "fetch found something new"),
+       kept clearly apart from the red so red always reads as "Git/danger/brand", never "FYI". */
+    -accent-info: #4FA8E0;
+    -accent-info-hover: #63BBEF;
+
+    /* Elevation: each step lightens -bg-panel-alt slightly so stacked surfaces (a card sitting on
+       a sidebar sitting on the base background) read as physically layered, not just flat blocks
+       of slightly-different gray. Applied where it matters most (Phase 2+), not retrofitted everywhere. */
+    -elevation-1: derive(-bg-panel-alt, 6%);
+    -elevation-2: derive(-bg-panel-alt, 14%);
+
+    -font-body: "Inter";
+    -font-body-medium: "Inter Medium";
+    -font-heading: "Space Grotesk SemiBold";
+    -font-display: "Space Grotesk";
+    -font-code: "JetBrains Mono";
+    -font-code-medium: "JetBrains Mono Medium";
+
     -fx-background-color: -bg-base;
     -fx-text-fill: -text-primary;
+    -fx-font-family: -font-body;
     -fx-font-size: 12px;
+}
+
+/* --- Type scale --- */
+
+.text-display {
+    -fx-font-family: -font-display;
+    -fx-font-weight: bold;
+    -fx-font-size: 30px;
+}
+
+.text-heading-1 {
+    -fx-font-family: -font-heading;
+    -fx-font-size: 20px;
+}
+
+.text-heading-2 {
+    -fx-font-family: -font-heading;
+    -fx-font-size: 15px;
+}
+
+.text-body-medium {
+    -fx-font-family: -font-body-medium;
 }
 
 .label {
@@ -159,7 +264,7 @@
 
 .section-heading {
     -fx-text-fill: -text-secondary;
-    -fx-font-weight: bold;
+    -fx-font-family: -font-heading;
     -fx-font-size: 11px;
 }
 
@@ -180,7 +285,7 @@
 .terminal-input {
     -fx-background-color: #0A0A0B;
     -fx-text-fill: #D8FFD8;
-    -fx-font-family: "Consolas", monospace;
+    -fx-font-family: -font-code;
     -fx-border-color: -border;
 }
 
@@ -190,8 +295,7 @@
 
 .terminal-prompt {
     -fx-text-fill: -git-accent;
-    -fx-font-family: "Consolas", monospace;
-    -fx-font-weight: bold;
+    -fx-font-family: -font-code-medium;
 }
 
 /* --- Accordion / command palette --- */
@@ -244,20 +348,72 @@
     -fx-background-color: derive(-git-accent, 60%);
 }
 
+/* --- Terminal panel (CLAUDE.md 4.3's "real terminal-style text input for confident users") ---
+   Given its own near-black elevated panel with a red top border and a header strip, so it reads
+   as the app's signature power-user feature rather than just another input row at the bottom of
+   the screen. */
+
+.terminal-panel {
+    -fx-background-color: #0A0A0B;
+    -fx-border-color: -git-accent transparent transparent transparent;
+    -fx-border-width: 2px 0 0 0;
+}
+
+.terminal-header {
+    -fx-background-color: derive(#0A0A0B, 12%);
+    -fx-border-color: transparent transparent -border transparent;
+    -fx-border-width: 0 0 1px 0;
+}
+
+.terminal-input-row {
+    -fx-background-color: #0A0A0B;
+}
+
 .command-log {
-    -fx-font-family: "Consolas", monospace;
+    -fx-background-color: #0A0A0B;
+    -fx-control-inner-background: #0A0A0B;
+    -fx-font-family: -font-code;
     -fx-font-size: 11px;
+}
+
+.command-log .list-cell {
+    -fx-background-color: #0A0A0B;
 }
 
 .tutorial-command-label {
     -fx-background-color: #0A0A0B;
     -fx-text-fill: #D8FFD8;
-    -fx-font-family: "Consolas", monospace;
+    -fx-font-family: -font-code;
     -fx-font-size: 13px;
     -fx-padding: 6px 10px;
     -fx-background-radius: 4px;
     -fx-border-color: -border;
     -fx-border-radius: 4px;
+}
+
+/* --- Tutorial bottom panel: the narration used to sit directly on the flat status-bar
+   background with no visual separation from the command label above it or the Next button below
+   it. Giving the narration its own card (a shade lighter than the panel behind it) and a wider
+   line height reads as a deliberate "here's what's happening" moment instead of a cramped caption
+   strip. */
+
+.tutorial-bottom-panel {
+    -fx-background-color: -bg-base;
+}
+
+.tutorial-narration-card {
+    -fx-background-color: -elevation-1;
+    -fx-background-radius: 8px;
+    -fx-border-color: -border;
+    -fx-border-radius: 8px;
+    -fx-padding: 16px 20px;
+}
+
+.tutorial-narration-text {
+    -fx-font-family: -font-body;
+    -fx-font-size: 14px;
+    -fx-text-fill: -text-primary;
+    -fx-line-spacing: 4px;
 }
 
 /* --- Scroll pane / commit graph canvas --- */
@@ -266,8 +422,26 @@
     -fx-background-color: -bg-base;
 }
 
+/* Sidebar content scrolls as one unit (file tree + command palette + campaign checklist) so
+   nothing gets silently cut off on a smaller window or a level with lots of objectives -- matches
+   the sidebar's own panel color rather than the canvas base color the generic rule above sets. */
+.sidebar-scroll, .sidebar-scroll > .viewport {
+    -fx-background-color: -bg-panel;
+}
+
+/* A faint repeating dot-grid gives the big open canvases (commit graph, skill tree, code graph)
+   a "blueprint" feel instead of reading as empty/unfinished when there isn't much content yet
+   (see CommitGraphView/SkillTreeView/CodeGraphView, which all share this style class). */
 .commit-graph {
     -fx-background-color: -bg-base;
+    -fx-background-image: url("../textures/dot-grid.png");
+    -fx-background-repeat: repeat;
+}
+
+.home-backdrop {
+    -fx-background-color: -bg-base;
+    -fx-background-image: url("../textures/dot-grid-home.png");
+    -fx-background-repeat: repeat;
 }
 
 /* --- Code Graph node/edge detail panel --- */

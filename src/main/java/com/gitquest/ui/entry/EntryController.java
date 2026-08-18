@@ -10,12 +10,14 @@ import com.gitquest.core.model.RepoStateModel;
 import com.gitquest.core.service.CommandService;
 import com.gitquest.core.service.RepositorySessionFactory;
 import com.gitquest.ui.common.ErrorDialogs;
+import com.gitquest.ui.common.LoadingIndicator;
 import com.gitquest.ui.common.Navigator;
 
 import javafx.fxml.FXML;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
+import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.Window;
@@ -37,6 +39,12 @@ import javafx.stage.Window;
 public final class EntryController {
 
     @FXML
+    private Button backButton;
+    @FXML
+    private LoadingIndicator loadingIndicator;
+    @FXML
+    private Label loadingLabel;
+    @FXML
     private TextField cloneUrlField;
     @FXML
     private Button cloneButton;
@@ -50,6 +58,7 @@ public final class EntryController {
 
     @FXML
     private void initialize() {
+        backButton.setOnAction(e -> navigator.showHome());
         cloneButton.setOnAction(e -> handleClone());
         openButton.setOnAction(e -> handleOpen());
         initializeButton.setOnAction(e -> handleInitialize());
@@ -65,7 +74,7 @@ public final class EntryController {
             new Alert(AlertType.WARNING, "Enter a repository URL to clone.").showAndWait();
             return;
         }
-        setBusy(true);
+        setBusy(true, "Cloning repository...");
         commandService.submit(
                 () -> {
                     Path destination = Files.createTempDirectory("gitquest-sandbox-clone-");
@@ -80,7 +89,7 @@ public final class EntryController {
         if (folder == null) {
             return;
         }
-        setBusy(true);
+        setBusy(true, "Opening folder...");
         commandService.submit(
                 () -> {
                     Path sandboxDir = Files.createTempDirectory("gitquest-sandbox-open-");
@@ -91,7 +100,7 @@ public final class EntryController {
     }
 
     private void handleInitialize() {
-        setBusy(true);
+        setBusy(true, "Initializing repository...");
         commandService.submit(
                 () -> {
                     Path sandboxDir = Files.createTempDirectory("gitquest-sandbox-init-");
@@ -104,19 +113,24 @@ public final class EntryController {
     }
 
     private void onSessionReady(RepoStateModel model) {
-        setBusy(false);
+        setBusy(false, null);
         navigator.showSandbox(model);
     }
 
     private void onSessionFailed(Throwable error) {
-        setBusy(false);
+        setBusy(false, null);
         ErrorDialogs.show("Couldn't start sandbox session", error);
     }
 
-    private void setBusy(boolean busy) {
+    private void setBusy(boolean busy, String message) {
+        backButton.setDisable(busy);
         cloneButton.setDisable(busy);
         openButton.setDisable(busy);
         initializeButton.setDisable(busy);
+        loadingIndicator.setActive(busy);
+        loadingLabel.setText(message);
+        loadingLabel.setVisible(busy);
+        loadingLabel.setManaged(busy);
     }
 
     private Path chooseDirectory(String title) {
