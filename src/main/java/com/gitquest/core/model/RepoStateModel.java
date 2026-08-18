@@ -157,6 +157,24 @@ public final class RepoStateModel {
                 refNamesByCommit.computeIfAbsent(commitId, unused -> new ArrayList<>()).add(shortName);
             }
 
+            // Remote-tracking refs (origin/main, ...) marked AFTER local branches so they never
+            // disrupt local lane assignment priority — they're superimposed info, not primary
+            // trunk structure. Walking them (not just listing them) matters: right after a fetch,
+            // a teammate's new commit may only be reachable via origin/main, not any local ref, so
+            // without this it simply wouldn't appear on the graph at all. CommitNodeView already
+            // renders any ref name that isn't the current branch in muted gray rather than bold —
+            // "origin/main" reads as visually distinct from "main" with no further styling needed.
+            for (Ref ref : repository.getRefDatabase().getRefsByPrefix(Constants.R_REMOTES)) {
+                ObjectId commitId = ref.getObjectId();
+                if (commitId == null) {
+                    continue;
+                }
+                walk.markStart(walk.parseCommit(commitId));
+                String shortName = Repository.shortenRefName(ref.getName());
+                collectedBranches.add(new BranchRef(shortName, commitId, false, true));
+                refNamesByCommit.computeIfAbsent(commitId, unused -> new ArrayList<>()).add(shortName);
+            }
+
             newBranches = new ArrayList<>();
             for (BranchRef branch : collectedBranches) {
                 boolean isHead = branch.name().equals(newHeadRefName);
