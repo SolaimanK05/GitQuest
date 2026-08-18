@@ -125,7 +125,7 @@ public final class SkillTreeView extends Pane {
         circle.setFill(LOCKED_FILL);
         circle.setStroke(STROKE);
         circle.setStrokeWidth(1.5);
-        Tooltip.install(circle, new Tooltip(arc.title() + " — coming soon\n" + arc.description()));
+        Tooltip.install(circle, new Tooltip(arc.title() + " (coming soon)\n" + arc.description()));
 
         Label caption = new Label("🔒 coming soon");
         caption.setLayoutX(x + RADIUS + 10);

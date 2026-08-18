@@ -302,11 +302,11 @@ public final class CommandExecutor {
             }
             List<ReflogEntry> entries = repository.getRefDatabase().getReflogReader(Constants.HEAD).getReverseEntries();
             if (entries.isEmpty()) {
-                throw new GitCommandException("Nothing to undo yet — the reflog is empty.");
+                throw new GitCommandException("Nothing to undo yet: the reflog is empty.");
             }
             ObjectId previous = entries.get(0).getOldId();
             if (previous == null || ObjectId.zeroId().equals(previous)) {
-                throw new GitCommandException("Nothing to undo — already at the first recorded state.");
+                throw new GitCommandException("Nothing to undo: already at the first recorded state.");
             }
             git().reset().setMode(ResetType.HARD).setRef(previous.name()).call();
         });
@@ -344,7 +344,7 @@ public final class CommandExecutor {
                 for (RemoteRefUpdate update : result.getRemoteUpdates()) {
                     RemoteRefUpdate.Status status = update.getStatus();
                     if (status != RemoteRefUpdate.Status.OK && status != RemoteRefUpdate.Status.UP_TO_DATE) {
-                        throw new GitCommandException("Push rejected (" + status + ") — origin has commits you don't have. "
+                        throw new GitCommandException("Push rejected (" + status + "): origin has commits you don't have. "
                                 + "Fetch and merge/rebase first, or push --force if you really mean to overwrite it.");
                     }
                 }

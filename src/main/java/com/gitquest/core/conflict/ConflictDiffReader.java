@@ -47,7 +47,7 @@ public final class ConflictDiffReader {
         Object rawResult = resolveMerger.getMergeResults().get(filePath);
         if (rawResult == null) {
             throw new IllegalStateException("No text merge result for " + filePath
-                    + " — it may be a binary file, or a delete/modify or rename conflict, not a text conflict.");
+                    + ". It may be a binary file, or a delete/modify or rename conflict, not a text conflict.");
         }
         @SuppressWarnings("unchecked")
         MergeResult<RawText> fileResult = (MergeResult<RawText>) rawResult;

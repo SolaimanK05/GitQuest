@@ -97,13 +97,13 @@ public final class SkillTreeThumbnail extends Pane {
         }
 
         String status = !unlocked ? "Locked" : (levels.isEmpty() ? "Coming soon" : completedCount + "/" + levels.size() + " levels complete");
-        Tooltip.install(circle, new Tooltip(arc.title() + " — " + status));
+        Tooltip.install(circle, new Tooltip(arc.title() + ": " + status));
         return circle;
     }
 
     public SkillTreeThumbnail() {
         setCursor(Cursor.HAND);
-        Tooltip.install(this, new Tooltip("Your Guided Campaign progress — click to continue"));
+        Tooltip.install(this, new Tooltip("Your Guided Campaign progress. Click to continue."));
         // A bare Pane inside a VBox otherwise gets stretched to the VBox's full width (VBox
         // defaults fillWidth to true) -- since this draws its content anchored to its own local
         // origin, that stretch would leave it looking left-aligned instead of centered.

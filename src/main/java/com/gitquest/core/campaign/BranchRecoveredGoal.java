@@ -30,6 +30,6 @@ public record BranchRecoveredGoal(String lostCommitMessage) implements GoalSpec 
 
     @Override
     public String describeObjective() {
-        return "Recover the deleted branch — recreate a branch pointing at the commit \"" + lostCommitMessage + "\".";
+        return "Recover the deleted branch: recreate a branch pointing at the commit \"" + lostCommitMessage + "\".";
     }
 }

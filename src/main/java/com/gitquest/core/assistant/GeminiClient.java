@@ -122,7 +122,7 @@ public final class GeminiClient {
         Map<String, Object> root = (Map<String, Object>) MiniJson.parse(responseBody);
         List<Object> candidates = (List<Object>) root.get("candidates");
         if (candidates == null || candidates.isEmpty()) {
-            throw new IllegalStateException("Gemini returned no candidates — the message may have been blocked by a safety filter.");
+            throw new IllegalStateException("Gemini returned no candidates. The message may have been blocked by a safety filter.");
         }
         Map<String, Object> firstCandidate = (Map<String, Object>) candidates.get(0);
         Map<String, Object> content = (Map<String, Object>) firstCandidate.get("content");
