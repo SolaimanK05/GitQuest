@@ -4,10 +4,13 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
+import org.eclipse.jgit.lib.ObjectId;
+
 import com.gitquest.core.campaign.LevelDefinition;
 import com.gitquest.core.campaign.LevelSessionFactory;
 import com.gitquest.core.campaign.TutorialStep;
 import com.gitquest.core.command.CommandExecutor;
+import com.gitquest.core.model.CommitNode;
 import com.gitquest.core.model.GraphDiff;
 import com.gitquest.core.model.GraphDiffCalculator;
 import com.gitquest.core.model.RepoSnapshot;
@@ -42,6 +45,8 @@ public final class TutorialController {
     private Label titleLabel;
     @FXML
     private Label progressLabel;
+    @FXML
+    private Label commandLabel;
     @FXML
     private Label narrationLabel;
     @FXML
@@ -112,20 +117,43 @@ public final class TutorialController {
         commandService.submit(() -> {
                     step.action().run(tutorialModel, tutorialExecutor);
                     tutorialModel.refresh();
-                    return null;
+                    List<ObjectId> mergeHeads = tutorialModel.getRepository().readMergeHeads();
+                    return mergeHeads != null && !mergeHeads.isEmpty() ? mergeHeads.get(0) : null;
                 },
-                ignored -> {
+                theirsId -> {
                     RepoSnapshot after = tutorialModel.snapshot();
                     GraphDiff diff = GraphDiffCalculator.diff(before, after);
                     commitGraphView.animateDiff(diff);
                     commitGraphView.syncRefsAndHead(after.commits(), after.headRefName(), after.headCommitId());
+                    updatePendingMergeVisual(after, theirsId);
                     narrationLabel.setText(step.narration());
+                    boolean hasCommand = step.command() != null && !step.command().isBlank();
+                    commandLabel.setText(hasCommand ? "$ " + step.command() : "");
+                    commandLabel.setVisible(hasCommand);
+                    commandLabel.setManaged(hasCommand);
                     setBusy(false);
                 },
                 error -> {
                     setBusy(false);
                     ErrorDialogs.show("Tutorial step failed", error);
                 });
+    }
+
+    /** A pending (conflicted) merge gets the same dashed, pulsing placeholder here as in Sandbox — mirrors {@code SandboxController.updatePendingMergeVisual}. */
+    private void updatePendingMergeVisual(RepoSnapshot after, ObjectId theirsId) {
+        if (theirsId == null) {
+            commitGraphView.clearPendingMerge();
+            return;
+        }
+        CommitNode ours = after.commits().stream()
+                .filter(c -> c.id().equals(after.headCommitId())).findFirst().orElse(null);
+        CommitNode theirs = after.commits().stream()
+                .filter(c -> c.id().equals(theirsId)).findFirst().orElse(null);
+        if (ours != null && theirs != null) {
+            commitGraphView.showPendingMerge(ours, theirs);
+        } else {
+            commitGraphView.clearPendingMerge();
+        }
     }
 
     /**

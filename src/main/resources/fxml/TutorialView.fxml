@@ -47,6 +47,7 @@
             <padding>
                 <Insets top="16" right="24" bottom="16" left="24"/>
             </padding>
+            <Label fx:id="commandLabel" wrapText="true" styleClass="tutorial-command-label" visible="false" managed="false"/>
             <Label fx:id="narrationLabel" wrapText="true" style="-fx-font-size: 14px;"/>
             <HBox alignment="CENTER_RIGHT">
                 <Button fx:id="nextButton" text="Next" styleClass="accent" minWidth="140"/>

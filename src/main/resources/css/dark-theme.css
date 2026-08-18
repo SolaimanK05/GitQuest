@@ -249,6 +249,17 @@
     -fx-font-size: 11px;
 }
 
+.tutorial-command-label {
+    -fx-background-color: #0A0A0B;
+    -fx-text-fill: #D8FFD8;
+    -fx-font-family: "Consolas", monospace;
+    -fx-font-size: 13px;
+    -fx-padding: 6px 10px;
+    -fx-background-radius: 4px;
+    -fx-border-color: -border;
+    -fx-border-radius: 4px;
+}
+
 /* --- Scroll pane / commit graph canvas --- */
 
 .scroll-pane, .scroll-pane > .viewport {

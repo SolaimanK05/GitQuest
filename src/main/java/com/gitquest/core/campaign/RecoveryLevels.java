@@ -35,8 +35,9 @@ final class RecoveryLevels {
                         + "it, then hard-reset back to that point to throw the bad commit away entirely.",
                 "Knowing reset --hard exists — and that it's reflog-recoverable, not truly gone — is what makes it safe to experiment boldly.",
                 List.of(
-                        TutorialStep.of("Here's a repo with one good commit — then someone (you, five minutes "
-                                + "from now) makes a bad one that breaks notes.txt.",
+                        TutorialStep.of("One good commit, then a bad one that breaks notes.txt — the kind of "
+                                + "thing that happens to everyone eventually.",
+                                "add .\ncommit -m \"Good commit\"\nadd .\ncommit -m \"Bad commit\"",
                                 (model, executor) -> {
                                     Path workTree = model.getRepository().getWorkTree().toPath();
                                     Path notes = workTree.resolve("notes.txt");
@@ -53,6 +54,7 @@ final class RecoveryLevels {
                                 + "with the message that created it."),
                         TutorialStep.of("reset --hard <commit> moves your branch straight to that commit, "
                                 + "discarding anything after it.",
+                                "reset --hard HEAD~1",
                                 (model, executor) -> executor.reset("HEAD~1", ResetType.HARD)),
                         TutorialStep.of("The bad commit is gone from the graph — but it isn't truly gone yet; "
                                 + "reflog keeps it recoverable for a while if you change your mind. Your "
@@ -90,8 +92,8 @@ final class RecoveryLevels {
                         + "\"Add login validation\".",
                 "Nothing about the file changes here — only the commit boundary and its message do, which is exactly what --soft is for.",
                 List.of(
-                        TutorialStep.of("Here's a repo with one real commit, then a sloppy \"wip\" commit on "
-                                + "top.",
+                        TutorialStep.of("One real commit, then a sloppy \"wip\" commit thrown on top.",
+                                "add .\ncommit -m \"Initial commit\"\nadd .\ncommit -m \"wip\"",
                                 (model, executor) -> {
                                     Path workTree = model.getRepository().getWorkTree().toPath();
                                     Files.writeString(workTree.resolve("login.txt"), "validate credentials\n");
@@ -103,10 +105,12 @@ final class RecoveryLevels {
                                 }),
                         TutorialStep.of("reset --soft <commit> only moves the branch pointer — the index and "
                                 + "working tree are left completely untouched.",
+                                "reset --soft HEAD~1",
                                 (model, executor) -> executor.reset("HEAD~1", ResetType.SOFT)),
                         TutorialStep.of("Notice: the file changes from that wip commit are still right there, "
                                 + "already staged — nothing about the actual content changed, only the commit "
                                 + "boundary did. Now commit it again, properly.",
+                                "commit -m \"Add login validation\"",
                                 (model, executor) -> executor.commit("Add login validation", AUTHOR_NAME, AUTHOR_EMAIL)),
                         TutorialStep.of("One clean commit with a real message, same content as before. Your "
                                 + "challenge repo has the same sloppy wip commit waiting — soft-reset it away "
@@ -149,8 +153,9 @@ final class RecoveryLevels {
                 "This is the difference that matters most in Arc 6: reset/amend for your own unshared work, revert for anything already public.",
                 List.of(
                         TutorialStep.of("Same shape as the hard-reset level: a good commit, then a bad one "
-                                + "that breaks notes.txt — but imagine this time it's already pushed and "
+                                + "that breaks notes.txt — but this time imagine it's already pushed and "
                                 + "teammates have pulled it.",
+                                "add .\ncommit -m \"Good commit\"\nadd .\ncommit -m \"Bad commit\"",
                                 (model, executor) -> {
                                     Path workTree = model.getRepository().getWorkTree().toPath();
                                     Path notes = workTree.resolve("notes.txt");
@@ -164,6 +169,7 @@ final class RecoveryLevels {
                         TutorialStep.of("reset and amend both rewrite history — dangerous once something's "
                                 + "shared. revert takes the opposite approach: it adds a brand-new commit that "
                                 + "undoes an earlier one's changes.",
+                                "revert HEAD",
                                 (model, executor) -> executor.revert("HEAD")),
                         TutorialStep.of("Look at the graph: the bad commit is still there, untouched — but a "
                                 + "new commit right after it brings notes.txt back to how it looked before. "
@@ -202,8 +208,9 @@ final class RecoveryLevels {
                         + "deleted. Use reflog to find that commit and recreate a branch pointing at it.",
                 "This is the single most reassuring thing to know about Git — an accidental branch delete almost never actually loses anything.",
                 List.of(
-                        TutorialStep.of("Here's a repo where a prototype branch, with one commit of real "
-                                + "work, has already been deleted.",
+                        TutorialStep.of("A prototype branch, with one real commit on it, gets force-deleted "
+                                + "here — simulating exactly the accident you're about to recover from.",
+                                "branch prototype\ncheckout prototype\nadd .\ncommit -m \"Prototype experiment\"\ncheckout main",
                                 (model, executor) -> {
                                     Path workTree = model.getRepository().getWorkTree().toPath();
                                     Files.writeString(workTree.resolve("README.md"), "A sample project.\n");
@@ -225,6 +232,7 @@ final class RecoveryLevels {
                                 + "including this one."),
                         TutorialStep.of("Recovery is just: find the commit in the reflog, then point a brand "
                                 + "new branch at it directly.",
+                                "branch prototype <commit-id>",
                                 (model, executor) -> executor.createBranchAt("prototype", lostCommitId.get())),
                         TutorialStep.of("prototype is back, pointing right at that same commit — nothing was "
                                 + "ever truly lost. Your challenge repo has the same deleted branch. Use "
