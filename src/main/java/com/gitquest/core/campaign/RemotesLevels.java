@@ -45,14 +45,15 @@ final class RemotesLevels {
                         + "notice your own main doesn't move.",
                 "Fetch-then-look-before-you-merge is what makes it safe to check in on a remote without risking your own work-in-progress.",
                 List.of(
-                        TutorialStep.of("Here's a repo already synced with an origin — and, unbeknownst to "
-                                + "you, a teammate has just pushed a new commit to it. Your own main hasn't "
-                                + "seen it yet.",
+                        TutorialStep.of("A repo already synced with an origin — and, unbeknownst to you, a "
+                                + "teammate has just pushed a new commit to it independently. Your own main "
+                                + "hasn't seen it yet.",
                                 (model, executor) -> setUpOrigin(model, executor, bareOrigin ->
                                         pushTeammateCommit(bareOrigin, "teammate.txt", "teammate's work\n", "Teammate's update"))),
                         TutorialStep.of("Git never reaches out to a remote on its own. fetch is how you ask — "
                                 + "it downloads new commits and updates origin/main, Git's record of what the "
                                 + "remote looks like.",
+                                "fetch",
                                 (model, executor) -> executor.fetch()),
                         TutorialStep.of("Look closely: origin/main just moved to show the new commit, but "
                                 + "your own main didn't budge. That's the whole point — fetch never touches "
@@ -82,12 +83,13 @@ final class RemotesLevels {
                         + "straight in.",
                 "Reaching for fetch versus pull is a judgment call teams make constantly — pull when you trust it, fetch-then-review when you don't.",
                 List.of(
-                        TutorialStep.of("Same setup as fetch: a repo synced with origin, and a teammate's new "
-                                + "commit already waiting there.",
+                        TutorialStep.of("Same setup as the fetch level a moment ago: a repo synced with "
+                                + "origin, and a teammate's new commit already waiting there.",
                                 (model, executor) -> setUpOrigin(model, executor, bareOrigin ->
                                         pushTeammateCommit(bareOrigin, "teammate.txt", "teammate's work\n", "Teammate's update"))),
                         TutorialStep.of("pull is fetch and merge in one step — it downloads what's new, then "
                                 + "immediately merges the tracked branch into yours.",
+                                "pull",
                                 (model, executor) -> executor.pull()),
                         TutorialStep.of("This time your own main moved too, now matching origin/main. No "
                                 + "separate look-before-you-leap step — pull commits to bringing the change in "
@@ -114,8 +116,9 @@ final class RemotesLevels {
                         + "You've committed new work locally that origin doesn't have yet. Push it.",
                 "This is the step that actually shares your work — everything before it only ever happened on your own machine.",
                 List.of(
-                        TutorialStep.of("Here's a repo synced with origin, with one new local commit origin "
-                                + "doesn't have yet.",
+                        TutorialStep.of("A repo synced with origin, plus one new local commit origin doesn't "
+                                + "have yet.",
+                                "add .\ncommit -m \"My new work\"",
                                 (model, executor) -> setUpOrigin(model, executor, null, () -> {
                                     Path workTree = model.getRepository().getWorkTree().toPath();
                                     Files.writeString(workTree.resolve("my-work.txt"), "new local work\n");
@@ -124,6 +127,7 @@ final class RemotesLevels {
                                 })),
                         TutorialStep.of("push uploads commits your branch has that origin doesn't — the "
                                 + "mirror image of fetch.",
+                                "push",
                                 (model, executor) -> executor.push(false)),
                         TutorialStep.of("Since origin hadn't changed since you last synced, this was a simple "
                                 + "fast-forward on the remote end — your commit just got appended."),
@@ -155,8 +159,8 @@ final class RemotesLevels {
                         + "branch that tracks it.",
                 "Every branch you've pulled or pushed so far in this arc relied on main already being a tracking branch from the very first level — now you're setting that relationship up yourself.",
                 List.of(
-                        TutorialStep.of("origin has a feature branch a teammate created — you don't have it "
-                                + "locally yet.",
+                        TutorialStep.of("origin has a feature branch a teammate created independently — you "
+                                + "don't have it locally yet.",
                                 (model, executor) -> setUpOrigin(model, executor, bareOrigin -> {
                                     Path otherClone = Files.createTempDirectory("gitquest-teammate-");
                                     try (Git other = Git.cloneRepository().setURI(bareOrigin.toUri().toString()).setDirectory(otherClone.toFile()).call()) {
@@ -168,10 +172,11 @@ final class RemotesLevels {
                                     }
                                     model.getGit().fetch().setRemote("origin").call();
                                 })),
-                        TutorialStep.of("Checking out a remote branch for the first time doesn't "
-                                + "automatically set up a tracking relationship — you do that explicitly."),
+                        TutorialStep.of("Checking out a remote branch for the first time doesn't automatically "
+                                + "set up a tracking relationship — you do that explicitly."),
                         TutorialStep.of("checkout -b creates a new local branch AND wires it to track the "
                                 + "remote one, in a single step.",
+                                "checkout -b feature origin/feature",
                                 (model, executor) -> executor.checkoutNewTrackingBranch("feature", "origin/feature")),
                         TutorialStep.of("Now local feature knows exactly which remote branch it corresponds "
                                 + "to — future fetch/pull/push on it need no extra arguments. Your challenge "
@@ -211,14 +216,16 @@ final class RemotesLevels {
                         + "it get rejected — then force-push to make origin match your history.",
                 "This is the scenario every \"never force-push to a shared branch\" warning is about — you're about to feel exactly why.",
                 List.of(
-                        TutorialStep.of("Here's a repo where your local history got rewritten (amended) "
-                                + "after last syncing — and, separately, a teammate has pushed their own new "
-                                + "commit to origin in the meantime. The two histories have diverged.",
+                        TutorialStep.of("Your local history just got rewritten (amended) after last syncing — "
+                                + "and, separately, a teammate has pushed their own new commit to origin in "
+                                + "the meantime. The two histories have diverged.",
+                                "amend -m \"Shared base (rewritten locally)\"",
                                 (model, executor) -> setUpOrigin(model, executor, bareOrigin -> {
                                     pushTeammateCommit(bareOrigin, "teammate.txt", "teammate's work\n", "Teammate's diverging work");
                                     executor.amend("Shared base (rewritten locally)");
                                 })),
                         TutorialStep.of("Let's try a plain push first and see what Git does.",
+                                "push",
                                 (model, executor) -> {
                                     try {
                                         executor.push(false);
@@ -229,6 +236,7 @@ final class RemotesLevels {
                         TutorialStep.of("Rejected — Git refuses to silently drop the teammate's commit from "
                                 + "origin. --force overrides that refusal and makes origin match your history "
                                 + "exactly, no matter what it had.",
+                                "push --force",
                                 (model, executor) -> executor.push(true)),
                         TutorialStep.of("Origin now matches your rewritten history — but the teammate's "
                                 + "commit that used to be there is gone from origin for everyone, not just "

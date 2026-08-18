@@ -22,26 +22,27 @@ final class FoundationsLevels {
                 "foundations-first-commit",
                 "foundations",
                 "First Commit",
-                "A brand new Git repository starts completely empty — even right after git init, nothing is "
-                        + "tracked yet. Git records history in two steps: staging marks which changes belong in "
-                        + "the next snapshot, and committing actually saves that snapshot permanently, along "
-                        + "with a message describing what changed. This two-step design is deliberate — it lets "
-                        + "you build up exactly the change you want to record before you save it, even if your "
-                        + "working directory has other unrelated edits in progress.\n\n"
+                "A brand-new Git repository starts out completely empty — even right after init, nothing is "
+                        + "tracked yet. Git records history in two deliberate steps: staging marks which changes "
+                        + "belong in the next snapshot, and committing saves that snapshot permanently, with a "
+                        + "message describing what changed. Splitting the two apart is deliberate — it lets you "
+                        + "build up exactly the change you want to record, even while other unrelated edits sit "
+                        + "in your working directory.\n\n"
                         + "This repository already has one file on disk, notes.txt, but Git isn't tracking it "
                         + "yet. Stage it, then commit it — that stage → commit cycle is the single most-repeated "
                         + "action in Git.",
                 "It's the same cycle you'll use for every single change you ever make in Git.",
                 List.of(
-                        TutorialStep.of("This is what a brand new repository looks like: completely empty. "
-                                + "No commits, nothing on the graph — even after \"git init\", Git isn't tracking "
-                                + "any files yet."),
-                        TutorialStep.of("Git saves history in two deliberate steps. STAGE marks which changes "
-                                + "belong in the next snapshot. COMMIT actually saves that snapshot for good, with "
-                                + "a message describing what changed. Watch both happen at once, right now."),
-                        TutorialStep.of("There it is — your first commit, appearing on the graph. That single "
-                                + "point is a permanent snapshot of the project at this moment. It isn't going "
-                                + "anywhere.",
+                        TutorialStep.of("Here's a brand-new repository — completely empty. Even right after "
+                                + "init, Git isn't tracking anything yet, so there's nothing on the graph at all."),
+                        TutorialStep.of("Git records history in two deliberate steps: staging marks which "
+                                + "changes belong in the next snapshot, and committing saves that snapshot for "
+                                + "good. Splitting them apart means you can build up exactly the change you want "
+                                + "before you save it."),
+                        TutorialStep.of("Watch both steps happen back to back: stage hello.txt, then commit it. "
+                                + "That single point landing on the graph is a permanent snapshot — it isn't "
+                                + "going anywhere.",
+                                "add .\ncommit -m \"My first commit\"",
                                 (model, executor) -> {
                                     Files.writeString(model.getRepository().getWorkTree().toPath().resolve("hello.txt"),
                                             "Hello, Git.\n");
@@ -49,8 +50,8 @@ final class FoundationsLevels {
                                     executor.commit("My first commit", AUTHOR_NAME, AUTHOR_EMAIL);
                                 }),
                         TutorialStep.of("From here on, every change you ever make in Git follows this exact "
-                                + "rhythm: edit a file, stage it, commit it. Your actual challenge repo is waiting "
-                                + "with one untracked file — do the same thing yourself.")),
+                                + "rhythm: edit a file, stage it, commit it. Your challenge repo has one "
+                                + "untracked file waiting — run through that same rhythm yourself.")),
                 List.of(
                         new ChecklistGoal("Stage notes.txt", "Type: add", model -> {
                             var status = new com.gitquest.core.command.CommandExecutor(model).status();
@@ -79,18 +80,20 @@ final class FoundationsLevels {
                         + "chain.",
                 "Teams rely on this history constantly — code review, blame, and debugging all start with git log.",
                 List.of(
-                        TutorialStep.of("Let's start with one commit already on the books, recording some "
+                        TutorialStep.of("A little history already on the books here: one commit recording some "
                                 + "earlier work.",
+                                "add .\ncommit -m \"First entry\"",
                                 (model, executor) -> {
                                     Path notes = model.getRepository().getWorkTree().toPath().resolve("notes.txt");
                                     Files.writeString(notes, "Line one.\n");
                                     executor.stageAll();
                                     executor.commit("First entry", AUTHOR_NAME, AUTHOR_EMAIL);
                                 }),
-                        TutorialStep.of("Git isn't a single save file that gets overwritten — it's a CHAIN. "
-                                + "Each commit points back at the one right before it. Let's add a second link."),
+                        TutorialStep.of("Git isn't a single save file that gets overwritten — it's a CHAIN. Each "
+                                + "commit points back at the one right before it. Let's add a second link."),
                         TutorialStep.of("A second commit, attached below the first. Notice it didn't replace "
                                 + "anything — both snapshots still exist, permanently, forever reachable.",
+                                "add .\ncommit -m \"Second entry\"",
                                 (model, executor) -> {
                                     Path notes = model.getRepository().getWorkTree().toPath().resolve("notes.txt");
                                     Files.writeString(notes, "Line one.\nLine two.\n");
@@ -100,14 +103,15 @@ final class FoundationsLevels {
                         TutorialStep.of("One more, for good measure. This growing chain is exactly what "
                                 + "\"git log\" walks through top to bottom — and it's what makes recovery "
                                 + "possible later: you can always look back at any earlier point.",
+                                "add .\ncommit -m \"Third entry\"",
                                 (model, executor) -> {
                                     Path notes = model.getRepository().getWorkTree().toPath().resolve("notes.txt");
                                     Files.writeString(notes, "Line one.\nLine two.\nLine three.\n");
                                     executor.stageAll();
                                     executor.commit("Third entry", AUTHOR_NAME, AUTHOR_EMAIL);
                                 }),
-                        TutorialStep.of("Your actual challenge repo already has two commits waiting, just like "
-                                + "the start of this walkthrough. Add a third one yourself, the exact same way.")),
+                        TutorialStep.of("Your challenge repo already has two commits waiting, just like the "
+                                + "start of this walkthrough. Add a third one yourself, the exact same way.")),
                 List.of(
                         new ChecklistGoal("Edit and stage notes.txt",
                                 "Open notes.txt in your own editor, add a line, save it, then type: add",
@@ -145,9 +149,9 @@ final class FoundationsLevels {
                         + "that excludes it, then stage and commit the .gitignore itself.",
                 "Committing build output bloats history and causes noisy diffs for your whole team.",
                 List.of(
-                        TutorialStep.of("Here's a small project, already committed — but look closely: a "
-                                + "build/ folder full of generated junk got swept in right along with the real "
-                                + "source files.",
+                        TutorialStep.of("A small project, already committed — but look closely: a build/ folder "
+                                + "full of generated junk got swept in right along with the real source files.",
+                                "add .\ncommit -m \"Initial project files (oops, build/ included)\"",
                                 (model, executor) -> {
                                     Path workTree = model.getRepository().getWorkTree().toPath();
                                     Files.createDirectories(workTree.resolve("build"));
@@ -159,9 +163,10 @@ final class FoundationsLevels {
                         TutorialStep.of("Build output changes constantly, doesn't represent real project "
                                 + "history, and just adds noise — it doesn't belong in Git at all. A .gitignore "
                                 + "file is how you tell Git to leave a path alone."),
-                        TutorialStep.of("Committing the .gitignore itself matters — it's just a normal file, "
-                                + "so once it's committed, the rule applies for anyone who clones this repo, not "
+                        TutorialStep.of("Committing the .gitignore itself matters — it's just a normal file, so "
+                                + "once it's committed, the rule applies for anyone who clones this repo, not "
                                 + "only you.",
+                                "add .\ncommit -m \"Ignore build output\"",
                                 (model, executor) -> {
                                     Path workTree = model.getRepository().getWorkTree().toPath();
                                     Files.writeString(workTree.resolve(".gitignore"), "build/\n");

@@ -33,8 +33,9 @@ final class RewritingHistoryLevels {
                         + "exactly \"Fix bug in login\".",
                 "This is the single most common history rewrite anyone does — cleaning up a commit before anyone else has seen it.",
                 List.of(
-                        TutorialStep.of("Here's a repo with one good commit, then one with both a typo in "
-                                + "notes.txt and a typo in its own message (\"Fx bug in login\").",
+                        TutorialStep.of("A good commit, then one with two problems at once: a typo in "
+                                + "notes.txt, and a typo in its own message (\"Fx bug in login\").",
+                                "add .\ncommit -m \"Initial commit\"\nadd .\ncommit -m \"Fx bug in login\"",
                                 (model, executor) -> {
                                     Path workTree = model.getRepository().getWorkTree().toPath();
                                     Path notes = workTree.resolve("notes.txt");
@@ -49,6 +50,7 @@ final class RewritingHistoryLevels {
                                 + "HEAD's commit entirely with a new one — built from whatever's staged now "
                                 + "plus a corrected message — rather than adding another commit on top."),
                         TutorialStep.of("Fix the file first, stage it, then amend with a corrected message.",
+                                "add .\namend -m \"Fix bug in login\"",
                                 (model, executor) -> {
                                     Path notes = model.getRepository().getWorkTree().toPath().resolve("notes.txt");
                                     Files.writeString(notes, "Login flow notes.\n");
@@ -96,8 +98,10 @@ final class RewritingHistoryLevels {
                         + "commit that adds urgent-fix.txt onto main.",
                 "This is exactly how a hotfix buried in a feature branch gets pulled out and shipped without dragging the rest of that branch along.",
                 List.of(
-                        TutorialStep.of("You're on main. feature has two commits: one adds urgent-fix.txt, the "
-                                + "other an unrelated half-finished experiment.txt.",
+                        TutorialStep.of("On main. feature has two commits ahead of it: one adds urgent-fix.txt, "
+                                + "the other an unrelated, half-finished experiment.txt.",
+                                "add .\ncommit -m \"Initial commit\"\nbranch feature\ncheckout feature\nadd .\n"
+                                        + "commit -m \"Add urgent fix\"\nadd .\ncommit -m \"Add experiment\"",
                                 (model, executor) -> {
                                     Path workTree = model.getRepository().getWorkTree().toPath();
                                     Files.writeString(workTree.resolve("README.md"), "A sample project.\n");
@@ -117,6 +121,7 @@ final class RewritingHistoryLevels {
                                 + "changes onto your current branch as a brand new commit — leaving the rest of "
                                 + "that branch behind entirely."),
                         TutorialStep.of("Let's grab only the urgent fix, not the experiment.",
+                                "cherry-pick feature~1",
                                 (model, executor) -> executor.cherryPick("feature~1")),
                         TutorialStep.of("main now has urgent-fix.txt, but experiment.txt never came along — "
                                 + "exactly the hotfix-without-the-rest pattern. Your challenge repo is set up "
@@ -160,6 +165,9 @@ final class RewritingHistoryLevels {
                         TutorialStep.of("feature branched off main a while back and picked up one commit of "
                                 + "its own. Since then, main has gained a new commit too — the two have "
                                 + "diverged.",
+                                "add .\ncommit -m \"Initial commit\"\nbranch feature\ncheckout feature\nadd .\n"
+                                        + "commit -m \"Add feature work\"\ncheckout main\nadd .\n"
+                                        + "commit -m \"Main moves on\"\ncheckout feature",
                                 (model, executor) -> {
                                     Path workTree = model.getRepository().getWorkTree().toPath();
                                     Files.writeString(workTree.resolve("base.txt"), "shared base\n");
@@ -181,6 +189,7 @@ final class RewritingHistoryLevels {
                                 + "your commits on top of it."),
                         TutorialStep.of("Watch feature's commit get replayed directly on top of main's latest "
                                 + "— a straight line, not a fork-and-rejoin shape.",
+                                "rebase main",
                                 (model, executor) -> executor.rebase("main")),
                         TutorialStep.of("Your challenge repo has the exact same diverged shape. Rebase "
                                 + "feature onto main yourself.")),
@@ -221,8 +230,10 @@ final class RewritingHistoryLevels {
                         + "message \"Add search feature\".",
                 "A reviewer (or future you, six months from now) would much rather see one commit titled \"Add search feature\" than three commits titled \"wip\".",
                 List.of(
-                        TutorialStep.of("feature branched off main, then picked up three messy \"wip\" "
-                                + "commits while the work was in progress.",
+                        TutorialStep.of("feature branched off main, then picked up three messy \"wip\" commits "
+                                + "while the work was in progress.",
+                                "add .\ncommit -m \"Initial commit\"\nbranch feature\ncheckout feature\nadd .\n"
+                                        + "commit -m \"wip\"\nadd .\ncommit -m \"wip\"\nadd .\ncommit -m \"wip\"",
                                 (model, executor) -> {
                                     Path workTree = model.getRepository().getWorkTree().toPath();
                                     Path search = workTree.resolve("search.txt");
@@ -241,10 +252,11 @@ final class RewritingHistoryLevels {
                                     executor.stageAll();
                                     executor.commit("wip", AUTHOR_NAME, AUTHOR_EMAIL);
                                 }),
-                        TutorialStep.of("Interactive rebase lets you rewrite a whole stretch of history at "
-                                + "once — reorder, drop, reword, or squash several commits into one."),
+                        TutorialStep.of("Interactive rebase lets you rewrite a whole stretch of history at once "
+                                + "— reorder, drop, reword, or squash several commits into one."),
                         TutorialStep.of("Squash all three wip commits into a single clean one, rebased onto "
                                 + "main's tip.",
+                                "rebase --squash main -m \"Add search feature\"",
                                 (model, executor) -> executor.rebaseSquash("main", "Add search feature")),
                         TutorialStep.of("One commit titled \"Add search feature\" — not three titled \"wip\". "
                                 + "Your challenge repo has the same messy history. Squash it yourself the same "

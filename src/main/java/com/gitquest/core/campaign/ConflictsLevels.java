@@ -33,6 +33,9 @@ final class ConflictsLevels {
                 List.of(
                         TutorialStep.of("main and feature have each edited the same line of notes.txt, "
                                 + "differently — a recipe for a conflict.",
+                                "add .\ncommit -m \"Initial commit\"\nbranch feature\ncheckout feature\nadd .\n"
+                                        + "commit -m \"Feature edits line two\"\ncheckout main\nadd .\n"
+                                        + "commit -m \"Main edits line two\"",
                                 (model, executor) -> {
                                     Path workTree = model.getRepository().getWorkTree().toPath();
                                     Path notes = workTree.resolve("notes.txt");
@@ -53,6 +56,7 @@ final class ConflictsLevels {
                                 + "sides touch the very same lines differently, Git has no way to guess which "
                                 + "version you want."),
                         TutorialStep.of("Watch what happens when we merge feature into main here.",
+                                "merge feature",
                                 (model, executor) -> executor.merge("feature", false)),
                         TutorialStep.of("See that pulsing highlight on the graph? That's a conflict — not a "
                                 + "failure, just Git stopping partway through and asking you to decide. Your "
@@ -95,8 +99,11 @@ final class ConflictsLevels {
                         + "resolve the conflict markers, then stage and commit to finish the merge.",
                 "This exact edit-stage-commit sequence is how every merge conflict in the real world gets resolved, no matter the tool.",
                 List.of(
-                        TutorialStep.of("This tutorial repo is already stopped mid-conflict on notes.txt, "
-                                + "just like a real merge would leave it.",
+                        TutorialStep.of("This tutorial repo is already stopped mid-conflict on notes.txt, just "
+                                + "like a real merge would leave it.",
+                                "add .\ncommit -m \"Initial commit\"\nbranch feature\ncheckout feature\nadd .\n"
+                                        + "commit -m \"Feature edits line two\"\ncheckout main\nadd .\n"
+                                        + "commit -m \"Main edits line two\"\nmerge feature",
                                 (model, executor) -> {
                                     Path workTree = model.getRepository().getWorkTree().toPath();
                                     Path notes = workTree.resolve("notes.txt");
@@ -117,9 +124,10 @@ final class ConflictsLevels {
                         TutorialStep.of("A conflicted file isn't corrupted — Git marks the disputed section "
                                 + "right inside it with <<<<<<< / ======= / >>>>>>> markers, bracketing \"yours\" "
                                 + "and \"theirs\" side by side."),
-                        TutorialStep.of("Resolving means deciding the final content and removing those "
-                                + "markers — here, we'll keep both edits, one after the other — then staging "
-                                + "and committing exactly like any other change.",
+                        TutorialStep.of("Resolving means deciding the final content and removing those markers "
+                                + "— here, we'll keep both edits, one after the other — then staging and "
+                                + "committing exactly like any other change.",
+                                "add .\ncommit -m \"Merge feature into main\"",
                                 (model, executor) -> {
                                     Path notes = model.getRepository().getWorkTree().toPath().resolve("notes.txt");
                                     Files.writeString(notes,
@@ -172,7 +180,11 @@ final class ConflictsLevels {
                         + "entirely instead of resolving it.",
                 "Knowing you can always retreat safely makes it much less risky to just try a merge and see what happens.",
                 List.of(
-                        TutorialStep.of("Stopped mid-conflict on notes.txt again, same as last time.",
+                        TutorialStep.of("Stopped mid-conflict on notes.txt again, same setup as the resolve "
+                                + "level a moment ago.",
+                                "add .\ncommit -m \"Initial commit\"\nbranch feature\ncheckout feature\nadd .\n"
+                                        + "commit -m \"Feature edits line two\"\ncheckout main\nadd .\n"
+                                        + "commit -m \"Main edits line two\"\nmerge feature",
                                 (model, executor) -> {
                                     Path workTree = model.getRepository().getWorkTree().toPath();
                                     Path notes = workTree.resolve("notes.txt");
@@ -194,6 +206,7 @@ final class ConflictsLevels {
                                 + "--abort throws away everything the merge attempt touched and puts your "
                                 + "branch back exactly how it was before you ran merge."),
                         TutorialStep.of("As if you'd never tried.",
+                                "merge --abort",
                                 (model, executor) -> executor.abortMerge()),
                         TutorialStep.of("notes.txt is back to Main's version, no conflict markers, no merge "
                                 + "commit — a clean single-parent HEAD, same as before the merge started. This "
