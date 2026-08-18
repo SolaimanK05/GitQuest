@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import com.gitquest.ui.common.LoadingIndicator?>
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.HBox?>
@@ -12,18 +14,29 @@
             xmlns:fx="http://javafx.com/fxml"
             fx:controller="com.gitquest.ui.entry.EntryController"
             styleClass="root">
+    <top>
+        <HBox alignment="CENTER_LEFT" spacing="12" styleClass="status-bar">
+            <padding>
+                <Insets top="12" right="16" bottom="12" left="16"/>
+            </padding>
+            <Button fx:id="backButton" text="&#8592; Home"/>
+            <LoadingIndicator fx:id="loadingIndicator"/>
+            <Label fx:id="loadingLabel" styleClass="sub-label" visible="false" managed="false"/>
+        </HBox>
+    </top>
     <center>
-        <VBox alignment="TOP_CENTER" spacing="32" BorderPane.alignment="CENTER">
+        <ScrollPane fitToWidth="true" styleClass="home-backdrop">
+        <VBox alignment="TOP_CENTER" spacing="32" styleClass="home-backdrop">
             <padding>
                 <Insets top="48" right="48" bottom="48" left="48"/>
             </padding>
-            <Label text="GitQuest" style="-fx-font-size: 28px; -fx-font-weight: bold; -fx-text-fill: -git-accent;"/>
+            <Label text="GitQuest" styleClass="text-display" style="-fx-text-fill: -git-accent;"/>
             <VBox alignment="TOP_CENTER" spacing="24" maxWidth="480">
 
                 <!-- Clone -->
                 <VBox spacing="6">
                     <Label text="Clone" styleClass="section-heading"/>
-                    <Label text="Clone a remote repository into an isolated sandbox copy. Push/fetch/pull afterward never leave your machine — only the initial clone touches the real remote." wrapText="true" styleClass="sub-label"/>
+                    <Label text="Clone a remote repository into an isolated sandbox copy. Push/fetch/pull afterward never leave your machine; only the initial clone touches the real remote." wrapText="true" styleClass="sub-label"/>
                     <HBox alignment="CENTER_LEFT" spacing="8">
                         <TextField fx:id="cloneUrlField" promptText="https://github.com/example/repo.git" prefWidth="320"/>
                         <Button fx:id="cloneButton" text="Clone..." styleClass="accent"/>
@@ -33,7 +46,7 @@
                 <!-- Open -->
                 <VBox spacing="6">
                     <Label text="Open" styleClass="section-heading"/>
-                    <Label text="Explore a real local folder in a safe sandbox copy — whether or not it's a Git repository yet, nothing you do afterward ever touches the original." wrapText="true" styleClass="sub-label"/>
+                    <Label text="Explore a real local folder in a safe sandbox copy. Whether or not it's a Git repository yet, nothing you do afterward ever touches the original." wrapText="true" styleClass="sub-label"/>
                     <HBox spacing="8">
                         <Button fx:id="openButton" text="Open..."/>
                     </HBox>
@@ -50,5 +63,6 @@
 
             </VBox>
         </VBox>
+        </ScrollPane>
     </center>
 </BorderPane>

@@ -22,6 +22,7 @@ import javafx.animation.TranslateTransition;
 import javafx.scene.Group;
 import javafx.scene.control.Label;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.Region;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 import javafx.scene.shape.Line;
@@ -56,6 +57,13 @@ public final class CommitGraphView extends Pane {
     public CommitGraphView() {
         getStyleClass().add("commit-graph");
         getChildren().addAll(edgesLayer, nodesLayer);
+        // A plain Region's default max size is unbounded, so the enclosing FXML's
+        // StackPane(CENTER) would otherwise stretch this to fill the whole viewport instead of
+        // centering it at its actual content size -- capping max to pref is what makes a small
+        // graph (a fresh repo, an early campaign level) actually sit centered rather than
+        // stretched-and-therefore-still-anchored-top-left.
+        setMaxWidth(Region.USE_PREF_SIZE);
+        setMaxHeight(Region.USE_PREF_SIZE);
     }
 
     /** First load after Open/Init/Clone: lay out with no animation. */
@@ -113,6 +121,15 @@ public final class CommitGraphView extends Pane {
                 all.getChildren().addAll(slideToNewLane(nodeView, shift.oldLane(), shift.newLane()));
             }
         }
+
+        // Added nodes are already inserted into nodesById at their final target position above --
+        // this view's own reported size can (and must) reflect that immediately, not only once the
+        // animation finishes. Deferring it used to mean the enclosing StackPane centered around
+        // whatever (often stale, sometimes zero) size this view previously had for the entire
+        // ~420ms fade/slide, then snapped to the correct centering right as it ended -- exactly the
+        // "spawns in the middle, then hops" glitch. Only shrinking (from a removal's node/edge
+        // actually leaving nodesById) still has to wait for the fade-out to finish.
+        resizeToContent();
 
         all.setOnFinished(event -> {
             for (ObjectId removedId : removalsToApply) {
@@ -374,6 +391,18 @@ public final class CommitGraphView extends Pane {
         }
     }
 
+    /**
+     * A short chain (a fresh repo, an early campaign level) reads as centered rather than stranded
+     * in a corner via the enclosing FXML's ScrollPane(fitToWidth/fitToHeight) + StackPane(CENTER)
+     * wrapper, not by this view inflating its own preferred size to match the viewport. An earlier
+     * version did the latter (growing prefWidth/prefHeight to the live viewport bounds via a
+     * listener) and it caused a visible scrollbar flicker: growing the pane could hide a scrollbar,
+     * which grew the viewport, which shrunk the pane back below viewport size, showing the
+     * scrollbar again, feeding back into itself for a frame or two every time the surrounding
+     * layout changed size (e.g. the tutorial's narration text reflowing on Next). Sizing purely
+     * from content, with centering handled one-directionally by the StackPane's layout pass
+     * instead, avoids that loop entirely.
+     */
     private void resizeToContent() {
         double maxX = 0;
         double maxY = 0;

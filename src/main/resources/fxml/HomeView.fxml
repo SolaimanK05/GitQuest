@@ -13,12 +13,12 @@
             fx:controller="com.gitquest.ui.home.HomeController"
             styleClass="root">
     <center>
-        <VBox alignment="CENTER" spacing="24" BorderPane.alignment="CENTER">
+        <VBox alignment="CENTER" spacing="24" styleClass="home-backdrop" BorderPane.alignment="CENTER">
             <padding>
                 <Insets top="48" right="48" bottom="48" left="48"/>
             </padding>
-            <Label text="GitQuest" style="-fx-font-size: 34px; -fx-font-weight: bold; -fx-text-fill: -git-accent;"/>
-            <Label text="Learn Git by doing it." styleClass="sub-label"/>
+            <Label text="GitQuest" styleClass="text-display" style="-fx-text-fill: -git-accent;"/>
+            <Label text="Learn Git by doing it." styleClass="sub-label, text-body-medium"/>
 
             <SkillTreeThumbnail fx:id="skillTreeThumbnail"/>
 
@@ -27,7 +27,7 @@
                 <Button fx:id="sandboxButton" text="Enter Sandbox" maxWidth="Infinity"/>
                 <Button fx:id="collaborationButton" text="Collaboration Demo" maxWidth="Infinity">
                     <tooltip>
-                        <Tooltip text="Two independent clones sharing one local &quot;origin&quot; — push/fetch/pull between them to see real divergence and conflicts."/>
+                        <Tooltip text="Two independent clones sharing one local &quot;origin&quot;. Push/fetch/pull between them to see real divergence and conflicts."/>
                     </tooltip>
                 </Button>
             </VBox>

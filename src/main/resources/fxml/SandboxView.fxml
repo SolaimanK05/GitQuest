@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import com.gitquest.ui.common.LoadingIndicator?>
 <?import com.gitquest.ui.sandbox.CodeGraphView?>
 <?import com.gitquest.ui.sandbox.CommitGraphView?>
 <?import com.gitquest.ui.sandbox.ConflictDiffView?>
@@ -21,6 +22,7 @@
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
 
 <BorderPane xmlns="http://javafx.com/javafx"
@@ -64,12 +66,14 @@
                 </Button>
                 <Button fx:id="openSandboxFolderButton" text="Open Folder">
                     <tooltip>
-                        <Tooltip text="Open this sandbox's actual folder on disk — edit files here with your own editor. It's an isolated copy, not your original project."/>
+                        <Tooltip text="Open this sandbox's actual folder on disk, so you can edit files here with your own editor. It's an isolated copy, not your original project."/>
                     </tooltip>
                 </Button>
             </HBox>
 
-            <VBox fx:id="sidebarContent" spacing="10" VBox.vgrow="ALWAYS">
+            <ScrollPane fitToWidth="true" VBox.vgrow="ALWAYS" styleClass="sidebar-scroll">
+            <content>
+            <VBox fx:id="sidebarContent" spacing="10">
                 <padding>
                     <Insets top="0" right="10" bottom="10" left="10"/>
                 </padding>
@@ -89,12 +93,12 @@
                                 </padding>
                                 <Button fx:id="stageButton" text="Stage All" maxWidth="Infinity">
                                     <tooltip>
-                                        <Tooltip text="git add . — stage all working-tree changes for the next commit."/>
+                                        <Tooltip text="git add .: stage all working-tree changes for the next commit."/>
                                     </tooltip>
                                 </Button>
                                 <Button fx:id="commitButton" text="Commit..." styleClass="accent" maxWidth="Infinity">
                                     <tooltip>
-                                        <Tooltip text="git commit — record staged changes as a new commit."/>
+                                        <Tooltip text="git commit: record staged changes as a new commit."/>
                                     </tooltip>
                                 </Button>
                                 <Button fx:id="refreshButton" text="Refresh / Log" maxWidth="Infinity">
@@ -111,7 +115,7 @@
                                 </padding>
                                 <Button fx:id="createBranchButton" text="New Branch..." maxWidth="Infinity">
                                     <tooltip>
-                                        <Tooltip text="git branch &lt;name&gt; — create a new branch pointing at HEAD."/>
+                                        <Tooltip text="git branch &lt;name&gt;: create a new branch pointing at HEAD."/>
                                     </tooltip>
                                 </Button>
                                 <ChoiceBox fx:id="checkoutTargetChoice" maxWidth="Infinity">
@@ -121,7 +125,7 @@
                                 </ChoiceBox>
                                 <Button fx:id="checkoutButton" text="Checkout" maxWidth="Infinity">
                                     <tooltip>
-                                        <Tooltip text="git checkout &lt;branch&gt; — switch HEAD and the working tree to that branch."/>
+                                        <Tooltip text="git checkout &lt;branch&gt;: switch HEAD and the working tree to that branch."/>
                                     </tooltip>
                                 </Button>
                             </VBox>
@@ -143,7 +147,7 @@
                                 </CheckBox>
                                 <Button fx:id="mergeButton" text="Merge" maxWidth="Infinity">
                                     <tooltip>
-                                        <Tooltip text="git merge &lt;branch&gt; — merge the selected branch into the current branch."/>
+                                        <Tooltip text="git merge &lt;branch&gt;: merge the selected branch into the current branch."/>
                                     </tooltip>
                                 </Button>
                             </VBox>
@@ -155,7 +159,7 @@
                                 </padding>
                                 <Button fx:id="undoLastCommandButton" text="Undo Last Command" maxWidth="Infinity">
                                     <tooltip>
-                                        <Tooltip text="A reflog-backed reset back to just before the last command that moved HEAD (or, if a merge is pending, cancels it) — safe to experiment with, this is git's own safety net, not a custom undo stack."/>
+                                        <Tooltip text="A reflog-backed reset back to just before the last command that moved HEAD (or, if a merge is pending, cancels it). Safe to experiment with, since this is git's own safety net, not a custom undo stack."/>
                                     </tooltip>
                                 </Button>
                             </VBox>
@@ -179,6 +183,8 @@
                     </ScrollPane>
                 </VBox>
             </VBox>
+            </content>
+            </ScrollPane>
         </VBox>
     </left>
 
@@ -187,9 +193,11 @@
         <TabPane fx:id="mainTabPane" tabClosingPolicy="UNAVAILABLE">
             <tabs>
                 <Tab text="Commit Graph">
-                    <ScrollPane fitToWidth="false" fitToHeight="false">
+                    <ScrollPane fitToWidth="true" fitToHeight="true">
                         <content>
-                            <CommitGraphView fx:id="commitGraphView"/>
+                            <StackPane alignment="CENTER">
+                                <CommitGraphView fx:id="commitGraphView"/>
+                            </StackPane>
                         </content>
                     </ScrollPane>
                 </Tab>
@@ -223,6 +231,7 @@
                                         <Insets top="8" right="16" bottom="8" left="16"/>
                                     </padding>
                                     <TextField fx:id="assistantInputField" promptText="Ask about Git, or about this repo's current state..." HBox.hgrow="ALWAYS"/>
+                                    <LoadingIndicator fx:id="assistantLoadingIndicator"/>
                                     <Button fx:id="assistantSendButton" text="Send"/>
                                 </HBox>
                             </VBox>
@@ -243,9 +252,10 @@
                                 </Button>
                                 <CheckBox fx:id="codeGraphTier2Check" text="Resolve method calls">
                                     <tooltip>
-                                        <Tooltip text="Real method-call resolution via JavaSymbolSolver instead of a name heuristic — correctly follows chained calls and inherited methods, at the cost of being slower and only available for the live working tree (disabled while scrubbing history)."/>
+                                        <Tooltip text="Real method-call resolution via JavaSymbolSolver instead of a name heuristic, correctly following chained calls and inherited methods, at the cost of being slower and only available for the live working tree (disabled while scrubbing history)."/>
                                     </tooltip>
                                 </CheckBox>
+                                <LoadingIndicator fx:id="codeGraphLoadingIndicator"/>
                                 <Label fx:id="codeGraphStatusLabel" styleClass="sub-label"/>
                                 <Label text="History:" style="-fx-padding: 0 0 0 16;"/>
                                 <Slider fx:id="codeGraphTimeTravelSlider" HBox.hgrow="ALWAYS" min="0" max="0" value="0" majorTickUnit="1"/>
@@ -338,23 +348,35 @@
                 <Label fx:id="remoteNoticeLabel" styleClass="remote-notice" visible="false" managed="false"/>
                 <Button fx:id="fetchNowButton" text="Fetch" visible="false" managed="false">
                     <tooltip>
-                        <Tooltip text="git fetch — download the new commits so you can inspect them. Still won't touch your working branch; merge/pull that in yourself."/>
+                        <Tooltip text="git fetch: download the new commits so you can inspect them. Still won't touch your working branch; merge/pull that in yourself."/>
                     </tooltip>
                 </Button>
                 <Button fx:id="checkRemoteButton" text="Check for updates">
                     <tooltip>
-                        <Tooltip text="Cheaply check origin's branch tips right now (no download) — the same check that also runs automatically in the background."/>
+                        <Tooltip text="Cheaply check origin's branch tips right now (no download). This is the same check that also runs automatically in the background."/>
                     </tooltip>
                 </Button>
             </HBox>
-            <ListView fx:id="commandLog" prefHeight="140" styleClass="command-log"/>
-            <HBox fx:id="terminalInputBox" spacing="6" visible="true" managed="true">
-                <padding>
-                    <Insets top="4" right="16" bottom="8" left="16"/>
-                </padding>
-                <Label text="&gt;" styleClass="terminal-prompt"/>
-                <TextField fx:id="terminalInputField" styleClass="terminal-input" promptText="commit -m &quot;message&quot;" HBox.hgrow="ALWAYS"/>
-            </HBox>
+            <VBox styleClass="terminal-panel">
+                <HBox styleClass="terminal-header" alignment="CENTER_LEFT" spacing="8">
+                    <padding>
+                        <Insets top="6" right="16" bottom="6" left="16"/>
+                    </padding>
+                    <Label text="&#9679;" style="-fx-text-fill: -git-accent; -fx-font-size: 9px;"/>
+                    <Label text="GITQUEST TERMINAL" styleClass="section-heading"/>
+                    <LoadingIndicator fx:id="terminalLoadingIndicator"/>
+                    <Region HBox.hgrow="ALWAYS"/>
+                    <Label text="type a real git command below" styleClass="sub-label" style="-fx-font-size: 10px;"/>
+                </HBox>
+                <ListView fx:id="commandLog" prefHeight="140" styleClass="command-log"/>
+                <HBox fx:id="terminalInputBox" spacing="6" visible="true" managed="true" styleClass="terminal-input-row">
+                    <padding>
+                        <Insets top="4" right="16" bottom="8" left="16"/>
+                    </padding>
+                    <Label text="&gt;" styleClass="terminal-prompt"/>
+                    <TextField fx:id="terminalInputField" styleClass="terminal-input" promptText="commit -m &quot;message&quot;" HBox.hgrow="ALWAYS"/>
+                </HBox>
+            </VBox>
         </VBox>
     </bottom>
 
