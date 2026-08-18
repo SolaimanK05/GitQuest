@@ -36,6 +36,6 @@ public record RevertRestoresContentGoal(String filePath, String expectedContent,
 
     @Override
     public String describeObjective() {
-        return "Revert the commit that broke " + filePath + " — restore its content with a new commit, not by rewriting history.";
+        return "Revert the commit that broke " + filePath + ": restore its content with a new commit, not by rewriting history.";
     }
 }

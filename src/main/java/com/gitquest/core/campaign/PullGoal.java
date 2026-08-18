@@ -25,6 +25,6 @@ public record PullGoal() implements GoalSpec {
 
     @Override
     public String describeObjective() {
-        return "Pull from origin — bring your branch up to date with the remote.";
+        return "Pull from origin: bring your branch up to date with the remote.";
     }
 }

@@ -37,6 +37,6 @@ public record FetchGoal(String expectedLocalHeadMessage) implements GoalSpec {
 
     @Override
     public String describeObjective() {
-        return "Fetch from origin — update your knowledge of it without moving your own branch.";
+        return "Fetch from origin: update your knowledge of it without moving your own branch.";
     }
 }

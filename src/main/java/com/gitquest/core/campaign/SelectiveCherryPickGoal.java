@@ -39,6 +39,6 @@ public record SelectiveCherryPickGoal(String includedFile, String excludedFile) 
 
     @Override
     public String describeObjective() {
-        return "Cherry-pick just the commit that adds " + includedFile + " — leave " + excludedFile + " out.";
+        return "Cherry-pick just the commit that adds " + includedFile + ", and leave " + excludedFile + " out.";
     }
 }
