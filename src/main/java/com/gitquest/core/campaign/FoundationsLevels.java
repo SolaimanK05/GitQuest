@@ -22,12 +22,12 @@ final class FoundationsLevels {
                 "foundations-first-commit",
                 "foundations",
                 "First Commit",
-                "A brand-new Git repository starts out completely empty. Even right after init, nothing is "
-                        + "tracked yet. Git records history in two deliberate steps: staging marks which changes "
-                        + "belong in the next snapshot, and committing saves that snapshot permanently, with a "
-                        + "message describing what changed. Splitting the two apart is deliberate, since it lets "
-                        + "you build up exactly the change you want to record, even while other unrelated edits "
-                        + "sit in your working directory.\n\n"
+                "A brand-new Git repository starts out completely empty, not one file, not one commit, nothing "
+                        + "for it to remember yet. Git records history in two deliberate steps: staging marks "
+                        + "which changes belong in the next snapshot, and committing saves that snapshot "
+                        + "permanently, with a message describing what changed. Splitting the two apart is "
+                        + "deliberate, since it lets you build up exactly the change you want to record, even "
+                        + "while other unrelated edits sit in your working directory.\n\n"
                         + "This repository already has one file on disk, notes.txt, but Git isn't tracking it "
                         + "yet. Stage it, then commit it. That stage-then-commit cycle is the single "
                         + "most-repeated action in Git.",
@@ -110,8 +110,8 @@ final class FoundationsLevels {
                                     executor.stageAll();
                                     executor.commit("Third entry", AUTHOR_NAME, AUTHOR_EMAIL);
                                 }),
-                        TutorialStep.of("Your challenge repo already has two commits waiting, just like the "
-                                + "start of this walkthrough. Add a third one yourself, the exact same way.")),
+                        TutorialStep.of("Your challenge repo already has two links in its own chain, just like "
+                                + "the start of this walkthrough. Forge a third yourself, the exact same way.")),
                 List.of(
                         new ChecklistGoal("Edit and stage notes.txt",
                                 "Open notes.txt in your own editor, add a line, save it, then type: add",
@@ -141,10 +141,10 @@ final class FoundationsLevels {
                 ".gitignore Habits",
                 "Not everything inside a project folder belongs in Git. Build output, compiled binaries, and "
                         + "other generated files change constantly, don't represent real project history, and "
-                        + "just bloat your repository with noise. A .gitignore file tells Git which paths to "
-                        + "leave alone so they never get staged by accident. And because .gitignore is itself "
-                        + "just a normal file, it needs to be committed too, so the rule applies for anyone else "
-                        + "who clones the project, not just you.\n\n"
+                        + "just bloat your repository with noise nobody asked for. A .gitignore file tells Git "
+                        + "which paths to leave alone so they never get staged by accident. And because "
+                        + ".gitignore is itself just a normal file, it needs to be committed too, so the rule "
+                        + "applies for anyone else who clones the project, not just you.\n\n"
                         + "This repository has a build/ folder full of generated junk. Create a .gitignore file "
                         + "that excludes it, then stage and commit the .gitignore itself.",
                 "Committing build output bloats history and causes noisy diffs for your whole team.",

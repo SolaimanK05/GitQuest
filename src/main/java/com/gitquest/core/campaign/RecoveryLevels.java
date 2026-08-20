@@ -25,12 +25,12 @@ final class RecoveryLevels {
                 "recovery-hard-reset-a-bad-commit",
                 "recovery",
                 "Undo a Bad Commit",
-                "Git almost never actually deletes anything right away. Every place HEAD has ever pointed "
-                        + "is recorded in the reflog, a local safety net separate from your commit history. "
-                        + "reset --hard <commit> moves your branch straight to that commit and makes the "
-                        + "working tree match it exactly, discarding anything after it. It's the most "
-                        + "destructive of the reset modes, fine for a commit only you have, since the reflog "
-                        + "keeps it recoverable for a while if you change your mind.\n\n"
+                "Git almost never actually deletes anything right away, even when it looks like it has. Every "
+                        + "place HEAD has ever pointed is recorded in the reflog, a local safety net separate "
+                        + "from your commit history. reset --hard <commit> moves your branch straight to that "
+                        + "commit and makes the working tree match it exactly, discarding anything after it. "
+                        + "It's the most destructive of the reset modes, fine for a commit only you have, since "
+                        + "the reflog keeps it recoverable for a while if you change your mind.\n\n"
                         + "The last commit on main broke notes.txt. Use reflog to see where HEAD was before "
                         + "it, then hard-reset back to that point to throw the bad commit away entirely.",
                 "Knowing reset --hard exists, and that it's reflog-recoverable rather than truly gone, is what makes it safe to experiment boldly.",
@@ -82,11 +82,12 @@ final class RecoveryLevels {
                 "recovery-soft-reset-to-redo",
                 "recovery",
                 "Soft Reset to Redo a Commit",
-                "reset --soft <commit> only moves the branch pointer. The index and working tree are "
-                        + "left completely untouched. Anything that was committed after <commit> comes back as "
-                        + "already-staged changes, ready to be committed again differently. It's a gentler "
-                        + "alternative to amend when what you actually want is to uncommit and start the "
-                        + "commit over, rather than just editing the last one in place.\n\n"
+                "reset --soft <commit> only moves the branch pointer, the lightest touch of any reset mode. "
+                        + "The index and working tree are left completely untouched. Anything that was "
+                        + "committed after <commit> comes back as already-staged changes, ready to be committed "
+                        + "again differently. It's a gentler alternative to amend when what you actually want is "
+                        + "to uncommit and start the commit over, rather than just editing the last one in "
+                        + "place.\n\n"
                         + "The last commit on main is labeled just \"wip\", not a real message. Soft-reset it "
                         + "away, then commit the same (still-staged) change again with the message "
                         + "\"Add login validation\".",
@@ -145,8 +146,9 @@ final class RecoveryLevels {
                 "reset and amend both rewrite history, which is fine when only you have seen those commits "
                         + "but dangerous the moment anyone else has pulled them. revert takes the opposite "
                         + "approach: it adds a brand new commit that undoes an earlier one's changes, leaving "
-                        + "the original commit right where it was. History only ever grows, never gets "
-                        + "rewritten, so it's safe to use on anything already shared.\n\n"
+                        + "the original commit right where it was, mistake and all, on the permanent record. "
+                        + "History only ever grows, never gets rewritten, so it's safe to use on anything "
+                        + "already shared.\n\n"
                         + "Imagine the last commit on main was already pushed and teammates have pulled it, "
                         + "but it broke notes.txt. Revert it instead of resetting, to fix the file without "
                         + "erasing that commit from history.",
@@ -199,11 +201,12 @@ final class RecoveryLevels {
                 "recovery-recover-a-deleted-branch",
                 "recovery",
                 "Recover a Deleted Branch",
-                "Deleting a branch only removes the name pointing at its commits. The commits themselves "
-                        + "stick around until Git eventually garbage-collects anything truly unreachable, which "
-                        + "doesn't happen quickly or automatically. Until then, the reflog still remembers "
-                        + "every commit HEAD ever visited, including ones on a branch you just deleted. "
-                        + "Recovery is just: find the commit in the reflog, point a new branch at it.\n\n"
+                "Deleting a branch only removes the name pointing at its commits, not the commits themselves, "
+                        + "however final it might feel in the moment. They stick around until Git eventually "
+                        + "garbage-collects anything truly unreachable, which doesn't happen quickly or "
+                        + "automatically. Until then, the reflog still remembers every commit HEAD ever visited, "
+                        + "including ones on a branch you just deleted. Recovery is just: find the commit in the "
+                        + "reflog, point a new branch at it.\n\n"
                         + "The prototype branch (with one commit of real work on it) has already been "
                         + "deleted. Use reflog to find that commit and recreate a branch pointing at it.",
                 "This is the single most reassuring thing to know about Git: an accidental branch delete almost never actually loses anything.",

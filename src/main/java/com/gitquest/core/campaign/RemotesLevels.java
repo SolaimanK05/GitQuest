@@ -36,11 +36,11 @@ final class RemotesLevels {
                 "remotes-fetch-from-origin",
                 "remotes",
                 "Fetch from Origin",
-                "Git never reaches out to a remote on its own. fetch is how you ask. It downloads any "
-                        + "new commits and updates your remote-tracking refs (origin/main) so you can see what "
-                        + "changed, but it deliberately does not touch your own branch. Your working directory "
-                        + "and your local main stay exactly as they were until you decide what to do with what "
-                        + "you fetched.\n\n"
+                "Git never reaches out to a remote on its own, no background syncing, no surprises. fetch is "
+                        + "how you ask. It downloads any new commits and updates your remote-tracking refs "
+                        + "(origin/main) so you can see what changed, but it deliberately does not touch your "
+                        + "own branch. Your working directory and your local main stay exactly as they were "
+                        + "until you decide what to do with what you fetched.\n\n"
                         + "A teammate has pushed a new commit to origin that you don't have yet. Fetch it, and "
                         + "notice your own main doesn't move.",
                 "Fetch-then-look-before-you-merge is what makes it safe to check in on a remote without risking your own work-in-progress.",
@@ -75,10 +75,10 @@ final class RemotesLevels {
                 "remotes-pull-from-origin",
                 "remotes",
                 "Pull from Origin",
-                "pull is fetch and merge in one step. It downloads what's new on the remote, same as "
-                        + "fetch, and then immediately merges the tracked branch into your current one. Use it "
-                        + "when you already know you want the remote's changes right now, rather than fetching "
-                        + "first to look them over.\n\n"
+                "pull is fetch and merge in one step, the shortcut for when you already know what you want. "
+                        + "It downloads what's new on the remote, same as fetch, and then immediately merges "
+                        + "the tracked branch into your current one. Use it when you already know you want the "
+                        + "remote's changes right now, rather than fetching first to look them over.\n\n"
                         + "Same situation as before: origin has a commit you don't. This time, pull it "
                         + "straight in.",
                 "Reaching for fetch versus pull is a judgment call teams make constantly. Pull when you trust it, fetch-then-review when you don't.",
@@ -112,12 +112,13 @@ final class RemotesLevels {
                 "Push to Origin",
                 "push uploads commits your branch has that origin doesn't, the mirror image of fetch. As "
                         + "long as origin hasn't changed since you last synced with it, this is a simple "
-                        + "fast-forward on the remote end: your commits just get appended to its history.\n\n"
+                        + "fast-forward on the remote end: your commits just get appended to its history, no "
+                        + "drama.\n\n"
                         + "You've committed new work locally that origin doesn't have yet. Push it.",
                 "This is the step that actually shares your work. Everything before it only ever happened on your own machine.",
                 List.of(
-                        TutorialStep.of("A repo synced with origin, plus one new local commit origin doesn't "
-                                + "have yet.",
+                        TutorialStep.of("You're synced with origin, but you've just made a commit it doesn't "
+                                + "know about yet.",
                                 "add .\ncommit -m \"My new work\"",
                                 (model, executor) -> setUpOrigin(model, executor, null, () -> {
                                     Path workTree = model.getRepository().getWorkTree().toPath();
@@ -152,9 +153,10 @@ final class RemotesLevels {
                 "remotes",
                 "Track a Remote Branch",
                 "A tracking branch is a local branch that remembers which remote branch it corresponds "
-                        + "to. That's what lets plain fetch/pull/push work without spelling out the remote and "
-                        + "branch name every time. Checking out a remote branch for the first time doesn't "
-                        + "create this relationship by itself; you set it up explicitly with checkout -b.\n\n"
+                        + "to, a standing relationship, not a one-time lookup. That's what lets plain "
+                        + "fetch/pull/push work without spelling out the remote and branch name every time. "
+                        + "Checking out a remote branch for the first time doesn't create this relationship by "
+                        + "itself; you set it up explicitly with checkout -b.\n\n"
                         + "origin has a feature branch you don't have locally yet. Create a local feature "
                         + "branch that tracks it.",
                 "Every branch you've pulled or pushed so far in this arc relied on main already being a tracking branch from the very first level. Now you're setting that relationship up yourself.",
@@ -206,11 +208,11 @@ final class RemotesLevels {
                 "Force-Push Danger",
                 "When your branch and origin have diverged (origin has commits you don't, and you have "
                         + "commits or rewritten history it doesn't), a plain push is rejected outright. Git "
-                        + "refuses to silently drop commits from the remote. --force overrides that refusal and "
-                        + "makes origin match your branch exactly, no matter what it had before. If someone "
-                        + "else's work was sitting on that remote branch, force-pushing throws it away for "
-                        + "everyone, not just you. There's no local-only undo once it's gone from the shared "
-                        + "remote.\n\n"
+                        + "refuses to silently drop commits from the remote, no matter how confident you sound. "
+                        + "--force overrides that refusal and makes origin match your branch exactly, no matter "
+                        + "what it had before. If someone else's work was sitting on that remote branch, "
+                        + "force-pushing throws it away for everyone, not just you. There's no local-only undo "
+                        + "once it's gone from the shared remote.\n\n"
                         + "Your local main has been rewritten (amended) since you last synced, and a teammate "
                         + "has separately pushed their own commit to origin in the meantime. Try to push, see "
                         + "it get rejected, then force-push to make origin match your history.",

@@ -22,11 +22,11 @@ final class BranchingLevels {
                 "branching-branch-out",
                 "branching",
                 "Branch Out",
-                "A branch is just a movable, named pointer to a commit. Creating one is instant and cheap, "
-                        + "because it doesn't copy any files, it only adds a new pointer. Switching branches "
-                        + "(checkout) then moves your working directory to match whatever that pointer points "
-                        + "to. This is what lets you work on something new without touching your main line of "
-                        + "work at all.\n\n"
+                "A branch is just a movable, named pointer to a commit, nothing heavier than that. Creating one "
+                        + "is instant and cheap, because it doesn't copy any files, it only adds a new pointer. "
+                        + "Switching branches (checkout) then moves your working directory to match whatever "
+                        + "that pointer points to. This is what lets you work on something new without touching "
+                        + "your main line of work at all.\n\n"
                         + "Create a new branch called feature and switch to it.",
                 "Branches are how Git lets many people (or many ideas) develop in parallel without stepping on each other.",
                 List.of(
@@ -72,10 +72,10 @@ final class BranchingLevels {
                 "branching",
                 "Fast-Forward Merge",
                 "When the branch you're merging INTO hasn't moved since you branched off, Git doesn't need to "
-                        + "combine two separate histories. It can just slide that branch's pointer forward to "
-                        + "match the tip of the branch you're merging in. This is a fast-forward merge, and it's "
-                        + "why merging is often instant: there's nothing to actually merge, only a pointer to "
-                        + "move.\n\n"
+                        + "combine two separate histories at all. It can just slide that branch's pointer "
+                        + "forward to match the tip of the branch you're merging in, like sliding a bookmark "
+                        + "further down the same page. This is a fast-forward merge, and it's why merging is "
+                        + "often instant: there's nothing to actually merge, only a pointer to move.\n\n"
                         + "You're on main. The feature branch has one commit main doesn't have yet. Merge "
                         + "feature into main.",
                 "Fast-forward is the default and simplest case. Recognizing it is what makes the no-ff level right after this one make sense.",
@@ -195,10 +195,11 @@ final class BranchingLevels {
                 "branching-delete-a-branch",
                 "branching",
                 "Delete a Branch",
-                "Once a branch's work has been fully merged, keeping its name around just adds clutter. Every "
-                        + "commit it pointed to is already reachable from main, so deleting the branch loses "
-                        + "nothing. Git also protects you here: deleting a branch refuses if it has commits main "
-                        + "doesn't have yet, so you can't accidentally throw away unmerged work this way.\n\n"
+                "Once a branch's work has been fully merged, keeping its name around just adds clutter, a label "
+                        + "on a box you've already unpacked. Every commit it pointed to is already reachable "
+                        + "from main, so deleting the branch loses nothing. Git also protects you here: deleting "
+                        + "a branch refuses if it has commits main doesn't have yet, so you can't accidentally "
+                        + "throw away unmerged work this way.\n\n"
                         + "The feature branch below is already fully merged into main. Delete it.",
                 "Cleaning up merged branches is routine hygiene. Real repositories accumulate dozens of stale ones if nobody bothers.",
                 List.of(
