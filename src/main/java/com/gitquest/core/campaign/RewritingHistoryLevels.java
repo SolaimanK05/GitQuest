@@ -23,11 +23,12 @@ final class RewritingHistoryLevels {
                 "rewriting",
                 "Amend a Commit",
                 "Committing is rarely perfect on the first try. Maybe there's a typo in the message, or a "
-                        + "file you forgot to include. --amend replaces HEAD's commit entirely with a new one "
-                        + "built from whatever's currently staged plus a message you give it, rather than "
-                        + "adding another commit on top. It's a genuine rewrite: the old commit's SHA is gone, "
-                        + "replaced by a brand new one. That's perfectly safe on work only you have, but risky "
-                        + "on anything already shared (more on that in Arc 6).\n\n"
+                        + "file you forgot to include, the kind of small slip everyone makes. --amend replaces "
+                        + "HEAD's commit entirely with a new one built from whatever's currently staged plus a "
+                        + "message you give it, rather than adding another commit on top. It's a genuine "
+                        + "rewrite: the old commit's SHA is gone, replaced by a brand new one. That's perfectly "
+                        + "safe on work only you have, but risky on anything already shared (more on that in "
+                        + "Arc 6).\n\n"
                         + "notes.txt has a typo, and the last commit's message has one too "
                         + "(\"Fx bug in login\"). Fix the file, then amend the commit so the message reads "
                         + "exactly \"Fix bug in login\".",
@@ -89,10 +90,11 @@ final class RewritingHistoryLevels {
                 "rewriting-cherry-pick-a-commit",
                 "rewriting",
                 "Cherry-Pick a Commit",
-                "Sometimes you want exactly one commit from another branch, not everything on it. "
-                        + "cherry-pick takes a single existing commit and replays just its changes onto your "
-                        + "current branch as a brand new commit, leaving the rest of that branch's history "
-                        + "behind entirely. It's the tool for \"I need that one fix, not the whole feature.\"\n\n"
+                "Sometimes you want exactly one commit from another branch, not everything on it, like pulling "
+                        + "a single ingredient out of someone else's recipe. cherry-pick takes a single existing "
+                        + "commit and replays just its changes onto your current branch as a brand new commit, "
+                        + "leaving the rest of that branch's history behind entirely. It's the tool for \"I need "
+                        + "that one fix, not the whole feature.\"\n\n"
                         + "You're on main. The feature branch has two commits: one adds urgent-fix.txt, the "
                         + "other adds experiment.txt (an unrelated, half-finished idea). Cherry-pick only the "
                         + "commit that adds urgent-fix.txt onto main.",
@@ -154,10 +156,10 @@ final class RewritingHistoryLevels {
                 "rewriting",
                 "Rebase Your Branch",
                 "Merging isn't the only way to bring a branch up to date. rebase takes your branch's "
-                        + "commits off, fast-forwards you to the tip of another branch, then replays your "
-                        + "commits one by one on top of it. The result is a straight line of history, as if "
-                        + "you'd started your work after that other branch's latest commit, instead of the "
-                        + "fork-and-rejoin shape a merge leaves behind.\n\n"
+                        + "commits off like removing books from a shelf, fast-forwards you to the tip of another "
+                        + "branch, then replays your commits one by one back onto it. The result is a straight "
+                        + "line of history, as if you'd started your work after that other branch's latest "
+                        + "commit, instead of the fork-and-rejoin shape a merge leaves behind.\n\n"
                         + "You're on feature, which branched off main a while ago. main has since gained a "
                         + "new commit. Rebase feature onto main so your work sits cleanly on top of it.",
                 "Many teams prefer a rebased, linear history on feature branches: it reads top to bottom like a single story instead of a web of merges.",
@@ -221,10 +223,11 @@ final class RewritingHistoryLevels {
                 "rewriting",
                 "Squash Commits (Interactive Rebase)",
                 "Real work is often messy in the moment: several small \"wip\" commits while you figure "
-                        + "something out. Interactive rebase lets you rewrite a whole stretch of history at "
-                        + "once: reorder commits, drop them, reword them, or squash several into one. The "
-                        + "squash use case alone is worth knowing well: turn a pile of in-progress commits "
-                        + "into a single clean one before anyone else ever has to look at your history.\n\n"
+                        + "something out, false starts and all. Interactive rebase lets you rewrite a whole "
+                        + "stretch of history at once: reorder commits, drop them, reword them, or squash "
+                        + "several into one. The squash use case alone is worth knowing well: turn a pile of "
+                        + "in-progress commits into a single clean one before anyone else ever has to look at "
+                        + "your history.\n\n"
                         + "You're on feature, which branched off main and picked up three messy \"wip\" "
                         + "commits. Squash all three into one commit, rebased onto main's tip, with the "
                         + "message \"Add search feature\".",
