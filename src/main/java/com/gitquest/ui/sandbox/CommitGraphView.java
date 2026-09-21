@@ -228,7 +228,7 @@ public final class CommitGraphView extends Pane {
         pendingMergeCircle.getStrokeDashArray().addAll(4.0, 4.0);
 
         pendingMergeLabel = new Label("merge pending…");
-        pendingMergeLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #F05133; -fx-font-style: italic;");
+        pendingMergeLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #F05133; -fx-font-style: italic;");
         pendingMergeLabel.setMouseTransparent(true);
 
         pendingMergeLineToOurs = pendingMergeDashedLine();

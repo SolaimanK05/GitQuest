@@ -34,7 +34,7 @@ final class CodeGraphNodeView {
         String fileName = path.substring(path.lastIndexOf('/') + 1);
         label.setText(fileName);
         label.setMouseTransparent(true);
-        label.setStyle("-fx-font-size: 10px; -fx-text-fill: #E6E6E6;");
+        label.setStyle("-fx-font-size: 12px; -fx-text-fill: #E6E6E6;");
         circle.setStroke(javafx.scene.paint.Color.web("#0C0C0D"));
         circle.setStrokeWidth(1.5);
         Tooltip.install(circle, new Tooltip(path + (hasParseError ? "\n(couldn't be fully parsed)" : "")));

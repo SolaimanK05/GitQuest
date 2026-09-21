@@ -40,7 +40,7 @@ final class CommitNodeView {
     CommitNodeView(CommitNode commit) {
         circle.setStroke(NORMAL_STROKE);
         circle.setStrokeWidth(1.5);
-        messageLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #E6E6E6;");
+        messageLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #E6E6E6;");
         messageLabel.setMouseTransparent(true);
         refLabel.setMouseTransparent(true);
         update(commit);
@@ -81,8 +81,8 @@ final class CommitNodeView {
             boolean isCurrent = name.equals(currentBranchName);
             Text text = new Text(name);
             text.setStyle(isCurrent
-                    ? "-fx-font-weight: bold; -fx-fill: #F05133; -fx-font-size: 11px;"
-                    : "-fx-fill: #9DA5B4; -fx-font-size: 11px;");
+                    ? "-fx-font-weight: bold; -fx-fill: #F05133; -fx-font-size: 13px;"
+                    : "-fx-fill: #9DA5B4; -fx-font-size: 13px;");
             refLabel.getChildren().add(text);
             if (i < refNames.size() - 1) {
                 refLabel.getChildren().add(new Text(", "));

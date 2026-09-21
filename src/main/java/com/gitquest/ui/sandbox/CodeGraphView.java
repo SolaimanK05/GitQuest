@@ -162,7 +162,7 @@ public final class CodeGraphView extends Pane {
             }
             Label folderLabel = new Label(entry.getKey() + "/");
             folderLabel.setMouseTransparent(true);
-            folderLabel.setStyle("-fx-font-size: 10px; -fx-font-style: italic; -fx-text-fill: #9DA5B4;");
+            folderLabel.setStyle("-fx-font-size: 12px; -fx-font-style: italic; -fx-text-fill: #9DA5B4;");
             folderLabel.setLayoutX(entry.getValue()[0] - 20);
             folderLabel.setLayoutY(entry.getValue()[1] - 34);
             folderLabelsLayer.getChildren().add(folderLabel);

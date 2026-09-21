@@ -53,6 +53,11 @@ public final class SkillTreeView extends Pane {
     public SkillTreeView() {
         getStyleClass().add("commit-graph");
         getChildren().addAll(edgesLayer, nodesLayer);
+        // A plain Region's default max size is unbounded, so the enclosing FXML's
+        // StackPane(CENTER) would otherwise stretch this to fill the whole viewport instead of
+        // centering it at its actual content size -- same fix as CommitGraphView.
+        setMaxWidth(javafx.scene.layout.Region.USE_PREF_SIZE);
+        setMaxHeight(javafx.scene.layout.Region.USE_PREF_SIZE);
     }
 
     public void render(List<ArcInfo> arcs, CampaignProgress progress, Consumer<LevelDefinition> onLevelSelected) {
@@ -130,7 +135,7 @@ public final class SkillTreeView extends Pane {
         Label caption = new Label("🔒 coming soon");
         caption.setLayoutX(x + RADIUS + 10);
         caption.setLayoutY(y - 7);
-        caption.setStyle("-fx-font-size: 11px; -fx-text-fill: #9DA5B4;");
+        caption.setStyle("-fx-font-size: 13px; -fx-text-fill: #9DA5B4;");
 
         if (startsNewArc) {
             addArcLabel(x, y, arc, unlocked);
@@ -164,7 +169,7 @@ public final class SkillTreeView extends Pane {
         // after the circle so it draws on top, not underneath it.
         if (completed || !unlocked) {
             Text glyph = new Text(completed ? "✓" : "🔒");
-            glyph.setStyle("-fx-font-size: 16px; -fx-fill: white;");
+            glyph.setStyle("-fx-font-size: 18px; -fx-fill: white;");
             glyph.setLayoutX(x - 6);
             glyph.setLayoutY(y + 6);
             glyph.setMouseTransparent(true);
@@ -174,7 +179,7 @@ public final class SkillTreeView extends Pane {
         Label title = new Label(level.title());
         title.setLayoutX(x + RADIUS + 10);
         title.setLayoutY(y - 7);
-        title.setStyle("-fx-font-size: 12px; -fx-text-fill: #E6E6E6;");
+        title.setStyle("-fx-font-size: 14px; -fx-text-fill: #E6E6E6;");
         nodesLayer.getChildren().add(title);
 
         if (startsNewArc) {
@@ -187,8 +192,14 @@ public final class SkillTreeView extends Pane {
         Label arcLabel = new Label((unlocked ? "" : "🔒 ") + arc.title().toUpperCase());
         arcLabel.setLayoutX(x - RADIUS - 8);
         arcLabel.setLayoutY(y - RADIUS - 22);
-        arcLabel.setStyle("-fx-font-size: 10px; -fx-font-weight: bold; -fx-text-fill: "
-                + (unlocked ? "#F05133" : "#5B6472") + ";");
+        // Left-anchored and growing rightward, this sits squarely across the chain's vertical
+        // connecting line (which runs straight down through x) for any title longer than a few
+        // characters -- an opaque chip background (an actual ref-tag look, matching the "branch/
+        // ref-style tag" this represents) hides the line segment underneath instead of letting it
+        // show through the gaps between glyphs.
+        arcLabel.setStyle("-fx-font-size: 12px; -fx-font-weight: bold; -fx-text-fill: "
+                + (unlocked ? "#F05133" : "#5B6472") + ";"
+                + " -fx-background-color: #121212; -fx-background-radius: 3px; -fx-padding: 1 5 1 5;");
         nodesLayer.getChildren().add(arcLabel);
     }
 }

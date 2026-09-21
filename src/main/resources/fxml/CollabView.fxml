@@ -25,7 +25,7 @@
                         <Tooltip text="Back to the Home screen"/>
                     </tooltip>
                 </Button>
-                <Label text="Collaboration Demo" style="-fx-font-weight: bold; -fx-font-size: 14px;"/>
+                <Label text="Collaboration Demo" style="-fx-font-weight: bold; -fx-font-size: 16px;"/>
             </HBox>
             <Label wrapText="true" styleClass="sub-label"
                    text="Clone A and Clone B are two independent local repos that both track the same shared &quot;origin&quot;, a local bare repo standing in for something like GitHub. Push from one side, then Fetch/Pull (or watch the passive update notice) on the other to experience real divergence and conflicts, not staged ones."/>

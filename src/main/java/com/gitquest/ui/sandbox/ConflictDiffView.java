@@ -28,12 +28,12 @@ import javafx.scene.layout.VBox;
 public final class ConflictDiffView extends HBox {
 
     private static final String CONFLICT_STYLE =
-            "-fx-font-family: 'Consolas', monospace; -fx-font-size: 11px; -fx-text-fill: #FFD9D2; "
+            "-fx-font-family: 'Consolas', monospace; -fx-font-size: 13px; -fx-text-fill: #FFD9D2; "
                     + "-fx-background-color: rgba(240, 81, 51, 0.22); -fx-padding: 2 4 2 4;";
     private static final String PLAIN_STYLE =
-            "-fx-font-family: 'Consolas', monospace; -fx-font-size: 11px; -fx-text-fill: #9DA5B4; -fx-padding: 2 4 2 4;";
+            "-fx-font-family: 'Consolas', monospace; -fx-font-size: 13px; -fx-text-fill: #9DA5B4; -fx-padding: 2 4 2 4;";
     private static final String EMPTY_CONFLICT_STYLE =
-            "-fx-font-family: 'Consolas', monospace; -fx-font-size: 11px; -fx-text-fill: #7A342B; -fx-font-style: italic; "
+            "-fx-font-family: 'Consolas', monospace; -fx-font-size: 13px; -fx-text-fill: #7A342B; -fx-font-style: italic; "
                     + "-fx-background-color: rgba(240, 81, 51, 0.10); -fx-padding: 2 4 2 4;";
 
     public ConflictDiffView() {

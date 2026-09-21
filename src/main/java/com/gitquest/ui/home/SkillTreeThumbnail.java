@@ -41,6 +41,13 @@ public final class SkillTreeThumbnail extends Pane {
         getChildren().clear();
         List<ArcInfo> arcs = CampaignCatalog.arcs();
 
+        // Edges and nodes are collected into separate layers (rather than interleaved into one
+        // flat child list) and added edges-first so every connecting line renders underneath
+        // every circle -- interleaving them meant each node's outgoing line was added after (and
+        // therefore drawn on top of) the node before it, cutting a flat segment across its stroke.
+        List<javafx.scene.Node> edges = new java.util.ArrayList<>();
+        List<javafx.scene.Node> nodes = new java.util.ArrayList<>();
+
         double previousX = -1;
         for (int i = 0; i < arcs.size(); i++) {
             ArcInfo arc = arcs.get(i);
@@ -53,12 +60,14 @@ public final class SkillTreeThumbnail extends Pane {
                 edge.setStroke(unlocked ? arcColor : LOCKED_FILL);
                 edge.setStrokeWidth(2);
                 edge.setOpacity(0.6);
-                getChildren().add(edge);
+                edges.add(edge);
             }
 
-            getChildren().add(arcNode(x, arc, i, unlocked, arcColor, progress));
+            nodes.add(arcNode(x, arc, i, unlocked, arcColor, progress));
             previousX = x;
         }
+        getChildren().addAll(edges);
+        getChildren().addAll(nodes);
 
         double width = MARGIN_X * 2 + (arcs.size() - 1) * COLUMN_WIDTH;
 

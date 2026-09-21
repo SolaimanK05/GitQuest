@@ -21,13 +21,13 @@
                 <Insets top="12" right="16" bottom="12" left="16"/>
             </padding>
             <Button fx:id="backButton" text="&#8592; Home"/>
-            <Label text="Guided Campaign" style="-fx-font-size: 20px; -fx-font-weight: bold;"/>
+            <Label text="Guided Campaign" style="-fx-font-size: 22px; -fx-font-weight: bold;"/>
         </HBox>
     </top>
     <center>
         <SplitPane dividerPositions="0.68">
             <items>
-                <ScrollPane fitToWidth="true" fitToHeight="true">
+                <ScrollPane fitToWidth="true">
                     <content>
                         <StackPane alignment="CENTER">
                             <SkillTreeView fx:id="skillTreeView"/>
@@ -43,7 +43,7 @@
                                 <Insets top="20" right="20" bottom="20" left="20"/>
                             </padding>
                             <Label fx:id="detailArcLabel" styleClass="section-heading"/>
-                            <Label fx:id="detailTitleLabel" style="-fx-font-size: 18px; -fx-font-weight: bold;" wrapText="true"/>
+                            <Label fx:id="detailTitleLabel" style="-fx-font-size: 20px; -fx-font-weight: bold;" wrapText="true"/>
                             <Label fx:id="detailDescriptionLabel" wrapText="true"/>
                             <Button fx:id="playButton" text="Play" styleClass="accent" maxWidth="Infinity" disable="true"/>
                             <Button fx:id="tutorialButton" text="Tutorial" maxWidth="Infinity" disable="true" visible="false" managed="false">

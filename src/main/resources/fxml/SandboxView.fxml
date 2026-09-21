@@ -37,11 +37,11 @@
                 <Insets top="12" right="16" bottom="12" left="16"/>
             </padding>
             <HBox spacing="12" alignment="CENTER_LEFT">
-                <Label fx:id="levelTitleLabel" style="-fx-font-weight: bold; -fx-font-size: 16px;" HBox.hgrow="ALWAYS"/>
+                <Label fx:id="levelTitleLabel" style="-fx-font-weight: bold; -fx-font-size: 18px;" HBox.hgrow="ALWAYS"/>
                 <Button fx:id="backToSkillTreeButton" text="&#8592; Skill Tree"/>
             </HBox>
             <VBox spacing="4" style="-fx-background-color: -bg-panel-alt; -fx-background-radius: 6px; -fx-border-color: -border; -fx-border-radius: 6px; -fx-padding: 12;">
-                <Label fx:id="objectiveLabel" wrapText="true" style="-fx-font-size: 13px;"/>
+                <Label fx:id="objectiveLabel" wrapText="true" style="-fx-font-size: 15px;"/>
             </VBox>
             <Label fx:id="whyItMattersLabel" wrapText="true" styleClass="sub-label"/>
         </VBox>
@@ -362,11 +362,11 @@
                     <padding>
                         <Insets top="6" right="16" bottom="6" left="16"/>
                     </padding>
-                    <Label text="&#9679;" style="-fx-text-fill: -git-accent; -fx-font-size: 9px;"/>
+                    <Label text="&#9679;" style="-fx-text-fill: -git-accent; -fx-font-size: 11px;"/>
                     <Label text="GITQUEST TERMINAL" styleClass="section-heading"/>
                     <LoadingIndicator fx:id="terminalLoadingIndicator"/>
                     <Region HBox.hgrow="ALWAYS"/>
-                    <Label text="type a real git command below" styleClass="sub-label" style="-fx-font-size: 10px;"/>
+                    <Label text="type a real git command below" styleClass="sub-label" style="-fx-font-size: 12px;"/>
                 </HBox>
                 <ListView fx:id="commandLog" prefHeight="140" styleClass="command-log"/>
                 <HBox fx:id="terminalInputBox" spacing="6" visible="true" managed="true" styleClass="terminal-input-row">

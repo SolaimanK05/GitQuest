@@ -102,7 +102,7 @@
     -fx-background-color: -bg-base;
     -fx-text-fill: -text-primary;
     -fx-font-family: -font-body;
-    -fx-font-size: 12px;
+    -fx-font-size: 14px;
 }
 
 /* --- Type scale --- */
@@ -110,17 +110,17 @@
 .text-display {
     -fx-font-family: -font-display;
     -fx-font-weight: bold;
-    -fx-font-size: 30px;
+    -fx-font-size: 32px;
 }
 
 .text-heading-1 {
     -fx-font-family: -font-heading;
-    -fx-font-size: 20px;
+    -fx-font-size: 22px;
 }
 
 .text-heading-2 {
     -fx-font-family: -font-heading;
-    -fx-font-size: 15px;
+    -fx-font-size: 17px;
 }
 
 .text-body-medium {
@@ -265,7 +265,7 @@
 .section-heading {
     -fx-text-fill: -text-secondary;
     -fx-font-family: -font-heading;
-    -fx-font-size: 11px;
+    -fx-font-size: 13px;
 }
 
 /* --- Inputs --- */
@@ -373,7 +373,7 @@
     -fx-background-color: #0A0A0B;
     -fx-control-inner-background: #0A0A0B;
     -fx-font-family: -font-code;
-    -fx-font-size: 11px;
+    -fx-font-size: 13px;
 }
 
 .command-log .list-cell {
@@ -384,7 +384,7 @@
     -fx-background-color: #0A0A0B;
     -fx-text-fill: #D8FFD8;
     -fx-font-family: -font-code;
-    -fx-font-size: 13px;
+    -fx-font-size: 15px;
     -fx-padding: 6px 10px;
     -fx-background-radius: 4px;
     -fx-border-color: -border;
@@ -411,7 +411,7 @@
 
 .tutorial-narration-text {
     -fx-font-family: -font-body;
-    -fx-font-size: 14px;
+    -fx-font-size: 16px;
     -fx-text-fill: -text-primary;
     -fx-line-spacing: 4px;
 }
@@ -458,26 +458,26 @@
 .detail-title {
     -fx-text-fill: -text-primary;
     -fx-font-weight: bold;
-    -fx-font-size: 14px;
+    -fx-font-size: 16px;
 }
 
 /* The file/connection a "depends on" or "used by" row is about — brighter than the
    description underneath it, since that's the part worth scanning for first. */
 .detail-item-primary {
     -fx-text-fill: -text-primary;
-    -fx-font-size: 12px;
+    -fx-font-size: 14px;
     -fx-font-weight: 600;
 }
 
 .detail-item-secondary {
     -fx-text-fill: -text-secondary;
-    -fx-font-size: 11px;
+    -fx-font-size: 13px;
 }
 
 .detail-empty {
     -fx-text-fill: -text-secondary;
     -fx-font-style: italic;
-    -fx-font-size: 11px;
+    -fx-font-size: 13px;
 }
 
 /* --- Remote update notice (passive "origin has new commits", CLAUDE.md 4.3) --- */
@@ -491,7 +491,7 @@
    Accordion, so it doesn't inherit the .accordion-scoped titled-pane rules above) --- */
 
 .checklist-hint-pane {
-    -fx-font-size: 11px;
+    -fx-font-size: 13px;
 }
 
 .checklist-hint-pane > .title {
@@ -505,7 +505,7 @@
 .checklist-hint-pane > .title > .text,
 .checklist-hint-pane > .title .text {
     -fx-fill: -text-secondary;
-    -fx-font-size: 11px;
+    -fx-font-size: 13px;
 }
 
 .checklist-hint-pane > .title > .arrow-button > .arrow {
@@ -537,7 +537,7 @@
 .ask-assistant-button {
     -fx-background-color: transparent;
     -fx-text-fill: -git-accent;
-    -fx-font-size: 11px;
+    -fx-font-size: 13px;
     -fx-padding: 2px 0 0 0;
     -fx-border-color: transparent;
     -fx-cursor: hand;
